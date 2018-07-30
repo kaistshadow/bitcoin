@@ -115,6 +115,10 @@ extern const char *GETBLOCKS;
  */
 extern const char *GETHEADERS;
 /**
+ * GENERATE message requests a mining
+ */
+extern const char *GENERATE;
+/**
  * The tx message transmits a single transaction.
  * @see https://bitcoin.org/en/developer-reference#tx
  */

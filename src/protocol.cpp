@@ -21,6 +21,7 @@ const char *GETDATA="getdata";
 const char *MERKLEBLOCK="merkleblock";
 const char *GETBLOCKS="getblocks";
 const char *GETHEADERS="getheaders";
+const char *GENERATE="generate";
 const char *TX="tx";
 const char *HEADERS="headers";
 const char *BLOCK="block";

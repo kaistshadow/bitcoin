@@ -30,9 +30,15 @@
 #include <utilmoneystr.h>
 #include <utilstrencodings.h>
 
+#include "rpc/server.h"
 #if defined(NDEBUG)
 # error "Bitcoin cannot be compiled without assertions."
 #endif
+
+#include "pubkey.h"
+#include "key.h"
+#include "rpc/mining.h"
+#include "base58.h"
 
 std::atomic<int64_t> nTimeBestReceived(0); // Used only to inform the wallet of when we last received a block
 
@@ -2106,8 +2112,32 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         nodestate->pindexBestHeaderSent = pindex ? pindex : chainActive.Tip();
         connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::HEADERS, vHeaders));
     }
+    else if (strCommand == NetMsgType::GENERATE) {
+        LogPrintf("GENERATE message received!\n");
+        std::string body = "{\"method\":\"generate\",\"params\":[1],\"id\":1}\n";
+        std::string uri = "/";
+        JSONRPCRequest jreq;
 
+        UniValue valRequest;
+        valRequest.read(body);
+        jreq.URI = uri;
+        jreq.parse(valRequest);
 
+        std::shared_ptr<CReserveScript> coinbase_script = std::make_shared<CReserveScript>();
+        CKey key;
+        key.MakeNewKey(true);
+
+        LogPrintf("[%s]\n", CBitcoinSecret(key).ToString());
+
+        CPubKey pubkey = key.GetPubKey();
+        coinbase_script->reserveScript = CScript() << ToByteVector(pubkey) << OP_CHECKSIG;
+        
+        int num_generate = 10;
+        uint64_t max_tries = 1000000;
+        LogPrintf("GENERATE message : before generateBlocks!\n");
+        generateBlocks(coinbase_script, num_generate, max_tries, false);
+        LogPrintf("GENERATE message : after generateBlocks!!!\n");
+    }
     else if (strCommand == NetMsgType::TX)
     {
         // Stop processing the transaction early if

@@ -23,6 +23,8 @@
 
 #include <functional>
 
+#include <shadow_interface.h>
+
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
 
 static void WaitForShutdown()
@@ -164,6 +166,7 @@ static bool AppInit(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
+    hj_interposer_test();
 #ifdef WIN32
     util::WinCmdLineArgs winArgs;
     std::tie(argc, argv) = winArgs.get();

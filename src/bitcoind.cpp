@@ -166,6 +166,8 @@ static bool AppInit(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
+#include <iostream>
+    std::cout<<"start hj_interposer_test\n";
     hj_interposer_test();
 #ifdef WIN32
     util::WinCmdLineArgs winArgs;

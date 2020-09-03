@@ -23,6 +23,7 @@
 
 #include <functional>
 
+//hyeojin add for test hj_interposer_test interposer in shadow_interface.
 #include <shadow_interface.h>
 
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;

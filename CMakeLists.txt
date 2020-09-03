@@ -31,7 +31,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/bitcoind
   
 # Define targets that can be used in same build-tree
 add_library(Bitcoin_0_19_1dev::Plugin SHARED IMPORTED GLOBAL)
-add_dependencies(Bitcoin_0_19_1dev::Plugin bitcoin_0.19.1)
+add_dependencies(Bitcoin_0_19_1dev::Plugin bitcoin_0.19.1dev)
 set_target_properties(Bitcoin_0_19_1dev::Plugin PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES "C"
   IMPORTED_LOCATION ${CMAKE_INSTALL_PREFIX}/plugins/libBITCOIND_0.19.1DEV.so)

@@ -23,6 +23,7 @@
 
 #include <functional>
 
+//hyeojin add for test hj_interposer_test interposer in shadow_interface.
 #include <shadow_interface.h>
 
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
@@ -166,8 +167,6 @@ static bool AppInit(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
-#include <iostream>
-    std::cout<<"start hj_interposer_test\n";
     hj_interposer_test();
 #ifdef WIN32
     util::WinCmdLineArgs winArgs;

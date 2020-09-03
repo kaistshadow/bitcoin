@@ -167,7 +167,8 @@ unsigned long long int _expected_mining_usec(unsigned int nBits) {
         static std::default_random_engine generator(random_num);
         default_random_source = &generator;
     }
-#define POW_LIMIT_RANDOM_BASE 10000
+#define POW_LIMIT_RANDOM_BASE 174762.66 //1024*1024/6
+#define VIRTUAL_NODE_CNT 2
 #define XFF_BITS 256
     arith_uint256 bnTarget;
     bnTarget.SetCompact(nBits);
@@ -182,7 +183,7 @@ unsigned long long int _expected_mining_usec(unsigned int nBits) {
         nonBits--;
     }
     long double result = -1;
-    std::exponential_distribution<long double> distribution(POW_LIMIT_RANDOM_BASE);
+    std::exponential_distribution<long double> distribution(POW_LIMIT_RANDOM_BASE / VIRTUAL_NODE_CNT);
     result = distribution(*default_random_source);
     result = result * 1000000 * multiplier;
     return (unsigned long long int)result;

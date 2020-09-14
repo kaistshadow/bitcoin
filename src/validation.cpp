@@ -1124,16 +1124,142 @@ bool GetTransaction(const uint256& hash, CTransactionRef& txOut, const Consensus
 // CBlock and CBlockIndex
 //
 
+static signed int vfilePos=0;
+
+bool CompareDATFiles(const CBlock& block, const FlatFilePos& pos) {
+
+    FlatFilePos pos_new= pos;
+    pos_new.nFile=pos.nFile-1;
+    pos_new.nPos=8;
+
+    fs::path path="cp_data/dat_"+std::to_string(pos_new.nFile)+".dat";
+
+    FILE* file = fsbridge::fopen(path, "rb");
+    if (!file) {
+        LogPrintf("COMPARE Result = file %d  is not exist! make the new file!!\n",pos_new.nFile);
+        return false;// file is not exist, so make the file!
+    }
+
+//    LogPrintf("Compare - try to read %s .dat nPos = %d file !!\n",path.string(),pos_new.nPos);
+
+    if (pos_new.nPos && fseek(file, pos_new.nPos, SEEK_SET)) {
+        LogPrintf("Unable to seek to position %u of %s\n", pos_new.nPos, path.string());
+        fclose(file);
+    }
+
+//1. read from cp_data/dat_N.dat file
+    CAutoFile filein(file, SER_DISK, CLIENT_VERSION);
+    if (filein.IsNull())
+        return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos_new.ToString());
+
+    CBlock block1=block;
+    block1.SetNull();
+    try {
+        filein >>  block1;
+    }
+    catch (const std::exception& e) {
+        return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos_new.ToString());
+    }
+
+//2. Read Block from cp_data.dat file
+    fs::path path2="cp_data/cp_data.dat";
+    FILE* file2 = fsbridge::fopen(path2, "rb");
+
+    if (pos_new.nPos && fseek(file2, pos_new.nPos, SEEK_SET)) {
+        LogPrintf("Unable to seek to position %u of %s\n", pos_new.nPos, path2.string());
+        fclose(file2);
+    }
+
+    CAutoFile filein2(file2, SER_DISK, CLIENT_VERSION);
+    if (filein2.IsNull())
+        return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos_new.ToString());
+
+    CBlock block2=block;
+    block2.SetNull();
+    try {
+        filein2 >>  block2;
+    }
+    catch (const std::exception& e) {
+        return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos_new.ToString());
+    }
+
+    if(block1.hashMerkleRoot.ToString()==block2.hashMerkleRoot.ToString()){
+        LogPrintf("COMPARE Result = cp_data.dat and cp_data/dat_%d.dat file is same!!!\n",pos_new.nFile);
+        return true;
+    }
+    LogPrintf("COMPARE Result = cp_data.dat and cp_data/dat_%d.dat file is NOT same!!!\n",pos_new.nFile);
+    return false;
+}
+bool CopyDATFile(int fileno) {
+    fs::path path=("cp_data/dat_"+std::to_string(fileno)+".dat");
+    FILE *rfp = fsbridge::fopen("cp_data/cp_data.dat", "rb");
+    FILE *wfp = fsbridge::fopen(path, "wb+");
+    char buf[1024];
+
+    int readcnt;
+    while(!feof(rfp)) {
+        readcnt = fread(buf, sizeof(char), 1024, rfp);
+        fwrite(buf, sizeof(char), readcnt, wfp);
+    }
+    fclose(rfp);
+    fclose(wfp);
+    return true;
+}
+
 static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart)
 {
+    LogPrintf("WriteBlockToDisk block, prevhash : %s \n", block.hashMerkleRoot.ToString());
+    fs::path path = "cp_data/cp_data.dat";
+    bool fWrite=false;
+    if(pos.nFile!=vfilePos) { //new datafile is created!
+        //1. check file is same as located in shared storage
+        CBlock block2 = block;
+        if (!CompareDATFiles(block2, pos)) {
+            //2. if not same, store into the  shared storage
+            CopyDATFile(pos.nFile-1);
+            LogPrintf("WriteBlockToDisk Result = make new .dat file!!!!\n");
+        }
+        //3. if same, flush,
+        vfilePos=pos.nFile;
+        fWrite=true;
+    }
+
+    //1. add block data to cp_data.dat file
+    FILE *cp_dat= fsbridge::fopen(path, fWrite? "wb+":"ab+");
+    if (fflush(cp_dat) != 0) { // harmless if redundantly called
+        LogPrintf("%s: fflush failed: %d\n", __func__, errno);
+        return false;
+    }
+    CAutoFile vfileout(cp_dat, SER_DISK, CLIENT_VERSION);
+    if (vfileout.IsNull())
+        return error("WriteBlockToDisk: OpenBlockFile failed");
+
+    // Write index header
+    unsigned int nSize = GetSerializeSize(block, vfileout.GetVersion());
+    vfileout << messageStart << nSize;
+
+    // Write block
+    long vfileOutPos = ftell(vfileout.Get());
+    if (vfileOutPos < 0)
+        return error("WriteBlockToDisk: ftell2 failed");
+
+    pos.nPos = (unsigned int)vfileOutPos;
+    vfileout << block;
+
+    if (!FileCommit(vfileout.Get()))
+        throw std::runtime_error("FileCommit failed");
+    vfileout.fclose();
+
+
+    //2. original code (make blocks/.dat file )
     // Open history file to append
     CAutoFile fileout(OpenBlockFile(pos), SER_DISK, CLIENT_VERSION);
     if (fileout.IsNull())
         return error("WriteBlockToDisk: OpenBlockFile failed");
 
     // Write index header
-    unsigned int nSize = GetSerializeSize(block, fileout.GetVersion());
-    fileout << messageStart << nSize;
+    unsigned int nSize2 = GetSerializeSize(block, fileout.GetVersion());
+    fileout << messageStart << nSize2;
 
     // Write block
     long fileOutPos = ftell(fileout.Get());
@@ -1141,6 +1267,9 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
         return error("WriteBlockToDisk: ftell failed");
     pos.nPos = (unsigned int)fileOutPos;
     fileout << block;
+    if (!FileCommit(fileout.Get()))
+        throw std::runtime_error("FileCommit failed");
+    fileout.fclose();
 
     return true;
 }

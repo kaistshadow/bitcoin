@@ -53,6 +53,8 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/thread.hpp>
 
+#include <shadow_interface.h>
+
 #if defined(NDEBUG)
 # error "Bitcoin cannot be compiled without assertions."
 #endif
@@ -1190,21 +1192,6 @@ bool CompareDATFiles(const CBlock& block, const FlatFilePos& pos) {
     LogPrintf("COMPARE Result = cp_data.dat and cp_data/dat_%d.dat file is NOT same!!!\n",pos_new.nFile);
     return false;
 }
-bool CopyDATFile(int fileno) {
-    fs::path path=("cp_data/dat_"+std::to_string(fileno)+".dat");
-    FILE *rfp = fsbridge::fopen("cp_data/cp_data.dat", "rb");
-    FILE *wfp = fsbridge::fopen(path, "wb+");
-    char buf[1024];
-
-    int readcnt;
-    while(!feof(rfp)) {
-        readcnt = fread(buf, sizeof(char), 1024, rfp);
-        fwrite(buf, sizeof(char), readcnt, wfp);
-    }
-    fclose(rfp);
-    fclose(wfp);
-    return true;
-}
 
 static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart)
 {
@@ -1216,7 +1203,9 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
         CBlock block2 = block;
         if (!CompareDATFiles(block2, pos)) {
             //2. if not same, store into the  shared storage
-            CopyDATFile(pos.nFile-1);
+            if(!copy_dat_files(pos.nFile-1)) {
+                return error("cannot copy %d Dat file!\n",pos.nFile-1);;
+            }
             LogPrintf("WriteBlockToDisk Result = make new .dat file!!!!\n");
         }
         //3. if same, flush,

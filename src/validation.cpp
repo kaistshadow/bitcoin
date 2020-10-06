@@ -1167,7 +1167,6 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     if (vfileOutPos < 0)
         return error("WriteBlockToDisk: ftell2 failed");
 
-    pos.nPos = (unsigned int)vfileOutPos;
     vfileout << block;
 
     if (!FileCommit(vfileout.Get()))
@@ -1203,7 +1202,16 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     block.SetNull();
 
     // Open history file to read
-    CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
+    char *path;
+    path=(char*)malloc(sizeof(char)*100);
+    sprintf(path,"cp_data/dat_%d_bcdnode0.bitcoind.1000.dat",pos.nFile);
+    FILE* file = fopen(path, "rb");
+    if(file== nullptr){
+        sprintf(path,"cp_data/cp_data.dat");
+        file = fopen(path, "rb");
+    }
+    fseek(file, pos.nPos, SEEK_SET);
+    CAutoFile filein(file, SER_DISK, CLIENT_VERSION);
     if (filein.IsNull())
         return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
 

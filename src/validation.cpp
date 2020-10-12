@@ -1130,13 +1130,12 @@ static signed int vfilePos=0;
 
 static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart)
 {
-    fs::path path = "cp_data/cp_data.dat";
+    LogPrintf("WriteBlockToDisk: %d /%d / %s\n",pos.nFile,pos.nPos,block.hashMerkleRoot.ToString());
+    fs::path path = get_tmp_file_path();
     bool fWrite=false;
     if(pos.nFile!=vfilePos) { //new datafile is created!
         //1. check file is same as located in shared storage
-        int res = compare_dat_files(pos.nFile-1);
-        LogPrintf("compare_dat_files Result = %d \n",res);
-        if (res==0) {
+        if (compare_dat_files(pos.nFile-1)==0) {
             //2. if not same, store into the  shared storage
             if(!copy_dat_files(pos.nFile-1)) {
                 return error("cannot copy %d Dat file!\n",pos.nFile-1);;
@@ -1203,15 +1202,15 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
 
     // Open history file to read
     char *path;
-    path=(char*)malloc(sizeof(char)*100);
-    sprintf(path,"cp_data/dat_%d_bcdnode0.bitcoind.1000.dat",pos.nFile);
+    path=get_dat_file_path(pos.nFile);
     FILE* file = fopen(path, "rb");
     if(file== nullptr){
-        sprintf(path,"cp_data/cp_data.dat");
+        path=get_tmp_file_path();
         file = fopen(path, "rb");
     }
     fseek(file, pos.nPos, SEEK_SET);
     CAutoFile filein(file, SER_DISK, CLIENT_VERSION);
+//    CAutoFile filein(OpenBlockFile(pos), SER_DISK, CLIENT_VERSION);
     if (filein.IsNull())
         return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
 

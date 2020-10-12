@@ -38,6 +38,7 @@
 #include <boost/thread.hpp>
 // for coinflip - added by HJKIM
 #include <random>
+#include <shadow_interface.h>
 
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
@@ -151,10 +152,6 @@ bool _check_new_block_accepted(CBlock *pblock) {
         return true;
     }
     return false;
-}
-unsigned int shadow_assign_virtual_id() {
-    // dummy function for interposer
-    return 0;
 }
 unsigned long long int _expected_mining_usec(unsigned int nBits) {
     static std::default_random_engine* default_random_source = NULL;

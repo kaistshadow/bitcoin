@@ -1201,16 +1201,17 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     block.SetNull();
 
     // Open history file to read
-    char *path;
-    path=get_dat_file_path(pos.nFile);
-    FILE* file = fopen(path, "rb");
-    if(file== nullptr){
+    char* path;
+    if(pos.nFile == 0) {
         path=get_tmp_file_path();
-        file = fopen(path, "rb");
+    } else {
+        path=get_actual_path(pos.nFile);
     }
+    FILE* file = fopen(path, "rb");
+
     fseek(file, pos.nPos, SEEK_SET);
     CAutoFile filein(file, SER_DISK, CLIENT_VERSION);
-//    CAutoFile filein(OpenBlockFile(pos), SER_DISK, CLIENT_VERSION);
+
     if (filein.IsNull())
         return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
 
@@ -1221,6 +1222,7 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     catch (const std::exception& e) {
         return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
     }
+    filein.fclose();
 
     // Check the header
     if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))

@@ -164,7 +164,7 @@ unsigned long long int _expected_mining_usec(unsigned int nBits) {
         static std::default_random_engine generator(random_num);
         default_random_source = &generator;
     }
-#define POW_LIMIT_RANDOM_BASE 174762.66 //1024*1024/6
+#define POW_LIMIT_RANDOM_BASE 1024*1024/6/10/10
 #define VIRTUAL_NODE_CNT 2
 #define XFF_BITS 256
     arith_uint256 bnTarget;

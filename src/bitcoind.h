@@ -1,0 +1,2 @@
+
+int exported_main();

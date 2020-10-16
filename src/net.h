@@ -943,7 +943,9 @@ public:
     void MaybeSetAddrName(const std::string& addrNameIn);
 };
 
+int BitcoinLibBindSocket(std::string ip_addr, int port);
 
+bool BitcoinLibReceiveMsg(const char *pch, unsigned int nBytes, std::list<CNetMessage>& vRecvMsg, std::list<CNetMessage>& vProcessMsg);
 
 
 

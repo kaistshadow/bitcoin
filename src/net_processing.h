@@ -93,4 +93,6 @@ bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats);
 /** Relay transaction to every node */
 void RelayTransaction(const uint256&, const CConnman& connman);
 
+bool BitcoinLibProcessMessage(CNetMessage& msg, const unsigned char (&MessageStartChars)[4], std::deque<std::vector<unsigned char>>& vSendMsg, CAddress& their_addr);
+
 #endif // BITCOIN_NET_PROCESSING_H

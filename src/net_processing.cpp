@@ -4114,3 +4114,67 @@ public:
     }
 };
 static CNetProcessingCleanup instance_of_cnetprocessingcleanup;
+
+bool BitcoinLibProcessMessage(CNetMessage& msg, const unsigned char (&MessageStartChars)[4], std::deque<std::vector<unsigned char>>& vSendMsg, CAddress& their_addr) {
+    // Read header
+    CMessageHeader& hdr = msg.hdr;
+    std::string strCommand = hdr.GetCommand();
+    CDataStream& vRecv = msg.vRecv;
+
+    if (strCommand == NetMsgType::VERSION) {
+        int64_t nTime;
+        CAddress addrMe;
+        CAddress addrFrom;
+        uint64_t nNonce = 1;
+        uint64_t nServiceInt;
+        ServiceFlags nServices;
+        int nVersion;
+        int nSendVersion;
+        std::string cleanSubVer;
+        int nStartingHeight = -1;
+        bool fRelay = true;
+
+        vRecv >> nVersion >> nServiceInt >> nTime >> addrMe;
+        nSendVersion = std::min(nVersion, PROTOCOL_VERSION);
+        nServices = ServiceFlags(nServiceInt);
+
+        if (!vRecv.empty())
+            vRecv >> addrFrom >> nNonce;
+        if (!vRecv.empty()) {
+            std::string strSubVer;
+            vRecv >> LIMITED_STRING(strSubVer, MAX_SUBVERSION_LENGTH);
+            cleanSubVer = SanitizeString(strSubVer);
+        }
+        if (!vRecv.empty()) {
+            vRecv >> nStartingHeight;
+        }
+        if (!vRecv.empty())
+            vRecv >> fRelay;
+
+        // version message
+        ServiceFlags nLocalNodeServices = ServiceFlags(NODE_NETWORK|NODE_WITNESS|NODE_NETWORK_LIMITED);
+        uint64_t nonce = 0;
+        int myNodeStartingHeight = nStartingHeight;
+
+        CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERSION, PROTOCOL_VERSION, (uint64_t)nLocalNodeServices, nTime, their_addr, addrFrom, nonce, strSubVersion, myNodeStartingHeight, true);
+        CSerializedNetMsg msg = CNetMsgMaker(INIT_PROTO_VERSION).Make(NetMsgType::VERSION, PROTOCOL_VERSION, (uint64_t)nLocalNodeServices, nTime, their_addr, addrFrom, nonce, strSubVersion, myNodeStartingHeight, true);
+
+        size_t nMessageSize = msg.data.size();
+        size_t nTotalSize = nMessageSize + CMessageHeader::HEADER_SIZE;
+        LogPrint(BCLog::NET, "sending %s (%d bytes) \n",  SanitizeString(msg.command.c_str()), nMessageSize);
+
+        std::vector<unsigned char> serializedHeader;
+        serializedHeader.reserve(CMessageHeader::HEADER_SIZE);
+        uint256 hash = Hash(msg.data.data(), msg.data.data() + nMessageSize);
+        CMessageHeader hdr(MessageStartChars, msg.command.c_str(), nMessageSize);
+        memcpy(hdr.pchChecksum, hash.begin(), CMessageHeader::CHECKSUM_SIZE);
+
+        CVectorWriter{SER_NETWORK, INIT_PROTO_VERSION, serializedHeader, 0, hdr};
+
+        if (nMessageSize) {
+            vSendMsg.push_back(std::move(serializedHeader));
+            vSendMsg.push_back(std::move(msg.data));
+        }
+    }
+    return true;
+}

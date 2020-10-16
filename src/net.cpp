@@ -23,6 +23,8 @@
 #include <util/strencodings.h>
 #include <util/translation.h>
 
+#include <shadow_interface.h>
+
 #ifdef WIN32
 #include <string.h>
 #else
@@ -2766,4 +2768,88 @@ uint64_t CConnman::CalculateKeyedNetGroup(const CAddress& ad) const
     std::vector<unsigned char> vchNetGroup(ad.GetGroup());
 
     return GetDeterministicRandomizer(RANDOMIZER_ID_NETGROUP).Write(vchNetGroup.data(), vchNetGroup.size()).Finalize();
+}
+
+
+int BitcoinLibBindSocket(std::string ip_addr, int port) {
+    // Create a TCP socket in the address family of the specified service.
+    SOCKET hSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (hSocket == INVALID_SOCKET)
+        return INVALID_SOCKET;
+
+    // Ensure that waiting for I/O on this socket won't result in undefined
+    // behavior.
+    if (!IsSelectableSocket(hSocket)) {
+        CloseSocket(hSocket);
+        LogPrintf("Cannot create connection: non-selectable socket created (fd >= FD_SETSIZE ?)\n");
+        return INVALID_SOCKET;
+    }
+
+#ifdef SO_NOSIGPIPE
+    int set = 1;
+    // Set the no-sigpipe option on the socket for BSD systems, other UNIXes
+    // should use the MSG_NOSIGNAL flag for every send.
+    setsockopt(hSocket, SOL_SOCKET, SO_NOSIGPIPE, (void*)&set, sizeof(int));
+#endif
+
+    // Set the no-delay option (disable Nagle's algorithm) on the TCP socket.
+    SetSocketNoDelay(hSocket);
+
+    // Set the non-blocking option on the socket.
+    if (!SetSocketNonBlocking(hSocket, true)) {
+        CloseSocket(hSocket);
+        LogPrintf("CreateSocket: Setting socket to non-blocking failed, error %s\n", NetworkErrorString(WSAGetLastError()));
+    }
+
+
+    struct 	sockaddr_in 	new_addr;    /* my address information */
+    new_addr.sin_family = AF_INET;         /* host byte order */
+    new_addr.sin_port = htons(port);     /* short, network byte order */
+    new_addr.sin_addr.s_addr = inet_addr(ip_addr.c_str());
+    bzero(&(new_addr.sin_zero), 8);        /* zero the rest of the struct */
+
+    if (shadow_bind(hSocket, (struct sockaddr *)&new_addr, sizeof(struct sockaddr)) == -1) {
+        perror("bind");
+        exit(1);
+    }
+
+    return hSocket;
+
+}
+
+bool BitcoinLibReceiveMsg(const char *pch, unsigned int nBytes, std::list<CNetMessage>& vRecvMsg, std::list<CNetMessage>& vProcessMsg) {
+    while (nBytes > 0) {
+        // get current incomplete message, or create a new one
+        if (vRecvMsg.empty() || vRecvMsg.back().complete())
+            vRecvMsg.push_back(CNetMessage(Params().MessageStart(), SER_NETWORK, INIT_PROTO_VERSION));
+
+        CNetMessage& msg = vRecvMsg.back();
+
+        // absorb network data
+        int handled;
+        if (!msg.in_data)
+            handled = msg.readHeader(pch, nBytes);
+        else
+            handled = msg.readData(pch, nBytes);
+
+        if (handled < 0)
+            return false;
+
+        if (msg.in_data && msg.hdr.nMessageSize > MAX_PROTOCOL_MESSAGE_LENGTH) {
+            LogPrint(BCLog::NET, "Oversized message, disconnecting\n");
+            return false;
+        }
+
+        pch += handled;
+        nBytes -= handled;
+    }
+
+    auto it(vRecvMsg.begin());
+    for (; it != vRecvMsg.end(); ++it) {
+        if (!it->complete())
+            break;
+    }
+    vProcessMsg.splice(vProcessMsg.end(), vRecvMsg, vRecvMsg.begin(), it);
+
+    return true;
 }

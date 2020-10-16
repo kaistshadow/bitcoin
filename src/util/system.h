@@ -43,6 +43,8 @@ extern const char * const BITCOIN_CONF_FILENAME;
 void SetupEnvironment();
 bool SetupNetworking();
 
+void TestHelloBitcoinLib();
+
 template<typename... Args>
 bool error(const char* fmt, const Args&... args)
 {

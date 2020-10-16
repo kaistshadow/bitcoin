@@ -36,6 +36,9 @@ add_dependencies(Bitcoin_0_19_1dev::Plugin bitcoin_0.19.1dev)
 set_target_properties(Bitcoin_0_19_1dev::Plugin PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES "C"
   IMPORTED_LOCATION ${CMAKE_INSTALL_PREFIX}/plugins/libBITCOIND_0.19.1DEV.so)
-
+target_include_directories(Bitcoin_0_19_1dev::Plugin
+        INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set_property(TARGET Bitcoin_0_19_1dev::Plugin PROPERTY IMPORTED_NO_SONAME 1)
 
 

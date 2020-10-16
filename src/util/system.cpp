@@ -1189,6 +1189,17 @@ void SetupEnvironment()
 #endif
 }
 
+static void TestStaticFunction() {
+    std::cout << "Hello, this is bitcoin lib's static function test" << "\n";
+    return;
+}
+
+void TestHelloBitcoinLib() {
+    std::cout << "Hello, this is bitcoin lib test" << "\n";
+    TestStaticFunction();
+    return;
+}
+
 bool SetupNetworking()
 {
 #ifdef WIN32

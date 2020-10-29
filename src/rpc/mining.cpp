@@ -105,64 +105,6 @@ static UniValue getnetworkhashps(const JSONRPCRequest& request)
     return GetNetworkHashPS(!request.params[0].isNull() ? request.params[0].get_int() : 120, !request.params[1].isNull() ? request.params[1].get_int() : -1);
 }
 
-bool _check_new_block_accepted(CBlock *pblock) {
-    LOCK(cs_main);
-    if(pblock->hashPrevBlock != ::ChainActive().Tip()->GetBlockHash()) {
-        return true;
-    }
-    return false;
-}
-
-// See usleep(3) for recommand input parameter for usleep
-#define USEC_PER_HASH 500
-#define HASHTRY_INTERVAL 1000
-void setgenerateBlocksPoW(const CScript& coinbase_script)
-{
-    unsigned int nExtraNonce = 0;
-    UniValue blockHashes(UniValue::VARR);
-
-    while (!ShutdownRequested())
-    {
-        uint64_t n_tries = 0;
-        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbase_script));
-        if (!pblocktemplate.get())
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
-        CBlock *pblock = &pblocktemplate->block;
-        {
-            LOCK(cs_main);
-            IncrementExtraNonce(pblock, ::ChainActive().Tip(), nExtraNonce);
-        }
-        bool conflict_flag = false;
-        while (pblock->nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus()) && !ShutdownRequested()) {
-            ++pblock->nNonce;
-            if(n_tries >= HASHTRY_INTERVAL) {
-                usleep(n_tries * USEC_PER_HASH);
-                n_tries = 0;
-                if (conflict_flag = _check_new_block_accepted(pblock)) {
-                    break;
-                }
-            }
-            n_tries++;
-        }
-//        if(n_tries > 0) {
-//            usleep(n_tries * USEC_PER_HASH);
-//            n_tries = 0;
-//        }
-        if (ShutdownRequested()) {
-            break;
-        } else if(conflict_flag) {
-            continue;
-        }
-        if (pblock->nNonce == std::numeric_limits<uint32_t>::max()) {
-            continue;
-        }
-        std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
-        if (!ProcessNewBlock(Params(), shared_pblock, true, nullptr))
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
-        blockHashes.push_back(pblock->GetHash().GetHex());
-    }
-}
-
 static UniValue generateBlocks(const CScript& coinbase_script, int nGenerate, uint64_t nMaxTries)
 {
     int nHeightEnd = 0;
@@ -204,6 +146,65 @@ static UniValue generateBlocks(const CScript& coinbase_script, int nGenerate, ui
     return blockHashes;
 }
 
+
+bool _check_new_block_accepted(CBlock *pblock) {
+    LOCK(cs_main);
+    if(pblock->hashPrevBlock != ::ChainActive().Tip()->GetBlockHash()) {
+        return true;
+    }
+    return false;
+}
+#ifndef SHADOW_COINFLIP
+// See usleep(3) for recommand input parameter for usleep
+#define USEC_PER_HASH 500
+#define HASHTRY_INTERVAL 1000
+void setgenerateBlocks(const CScript& coinbase_script)
+{
+    unsigned int nExtraNonce = 0;
+    UniValue blockHashes(UniValue::VARR);
+
+    while (!ShutdownRequested())
+    {
+        uint64_t n_tries = 0;
+        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbase_script));
+        if (!pblocktemplate.get())
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
+        CBlock *pblock = &pblocktemplate->block;
+        {
+            LOCK(cs_main);
+            IncrementExtraNonce(pblock, ::ChainActive().Tip(), nExtraNonce);
+        }
+        bool conflict_flag = false;
+        while (pblock->nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus()) && !ShutdownRequested()) {
+            ++pblock->nNonce;
+            if(n_tries >= HASHTRY_INTERVAL) {
+                usleep(n_tries * USEC_PER_HASH);
+                n_tries = 0;
+                if ((conflict_flag = _check_new_block_accepted(pblock))) {
+                    break;
+                }
+            }
+            n_tries++;
+        }
+        if(n_tries > 0) {
+            usleep(n_tries * USEC_PER_HASH);
+            n_tries = 0;
+        }
+        if (ShutdownRequested()) {
+            break;
+        } else if(conflict_flag) {
+            continue;
+        }
+        if (pblock->nNonce == std::numeric_limits<uint32_t>::max()) {
+            continue;
+        }
+        std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
+        if (!ProcessNewBlock(Params(), shared_pblock, true, nullptr))
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
+        blockHashes.push_back(pblock->GetHash().GetHex());
+    }
+}
+#else
 unsigned long long int _expected_mining_usec(unsigned int nBits) {
     static std::default_random_engine* default_random_source = NULL;
     if(default_random_source==NULL) {
@@ -215,7 +216,6 @@ unsigned long long int _expected_mining_usec(unsigned int nBits) {
         static std::default_random_engine generator(random_num);
         default_random_source = &generator;
     }
-
 #define VIRTUAL_NODE_CNT 2
 #define EXP_BLK_NO   100
 #define EXP_SIMTIME_FOR_BLK    1000
@@ -278,6 +278,7 @@ void setgenerateBlocks(const CScript& coinbase_script)
         blockHashes.push_back(pblock->GetHash().GetHex());
     }
 }
+#endif
 
 static UniValue generatetoaddress(const JSONRPCRequest& request)
 {
@@ -313,39 +314,6 @@ static UniValue generatetoaddress(const JSONRPCRequest& request)
     CScript coinbase_script = GetScriptForDestination(destination);
 
     return generateBlocks(coinbase_script, nGenerate, nMaxTries);
-}
-
-static UniValue setgeneratetoaddressPoW(const JSONRPCRequest& request)
-{
-    RPCHelpMan{"setgeneratetoaddressPoW",
-               "\nMine forever with given wallet address as a coinbase tx's wallet with old way(PoW)\n",
-               {
-                       {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The address to send the newly generated bitcoin to."},
-               },
-               RPCResult{
-                       "true              (boolean) Returns true\n"
-               },
-               RPCExamples{
-                       HelpExampleCli("setgeneratetoaddress", "\"myaddress\"")
-                       + "If you are running the bitcoin core wallet, you can get a new address to send the newly generated bitcoin to with:\n"
-                       + HelpExampleCli("getnewaddress", "")
-               },
-    }.Check(request);
-
-    static boost::thread_group* minerThreadsPoW = NULL;
-    if(minerThreadsPoW) {
-        return false;
-    }
-
-    CTxDestination destination = DecodeDestination(request.params[0].get_str());
-    if (!IsValidDestination(destination)) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Error: Invalid address");
-    }
-
-    CScript coinbase_script = GetScriptForDestination(destination);
-    minerThreadsPoW = new boost::thread_group();
-    minerThreadsPoW->create_thread(boost::bind(&setgenerateBlocksPoW, coinbase_script));
-    return true;
 }
 
 static UniValue setgeneratetoaddress(const JSONRPCRequest& request)
@@ -1167,7 +1135,6 @@ static const CRPCCommand commands[] =
 
     { "generating",         "generatetoaddress",      &generatetoaddress,      {"nblocks","address","maxtries"} },
     { "generating",         "setgeneratetoaddress",   &setgeneratetoaddress,   {"address"} },
-    { "generating",         "setgeneratetoaddressPoW",   &setgeneratetoaddressPoW,   {"address"} },
 
     { "util",               "estimatesmartfee",       &estimatesmartfee,       {"conf_target", "estimate_mode"} },
 

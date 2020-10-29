@@ -86,8 +86,10 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
     // Check proof of work matches claimed amount
     // temporarily commented out by HJKIM
     // TODO: Shadow hash checking rule shoud be added
+#ifdef SHADOW_COINFLIP
+#else
     if (UintToArith256(hash) > bnTarget)
         return false;
-
+#endif
     return true;
 }

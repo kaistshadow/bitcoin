@@ -87,6 +87,8 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
     // temporarily commented out by HJKIM
     // TODO: Shadow hash checking rule shoud be added
 #ifdef SHADOW_COINFLIP
+    if (!shadow_bitcoin_check_hash(hash.GetHex()))
+        return false;
 #else
     if (UintToArith256(hash) > bnTarget)
         return false;

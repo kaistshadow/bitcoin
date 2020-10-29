@@ -273,6 +273,7 @@ void setgenerateBlocks(const CScript& coinbase_script)
             continue;
         }
         std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
+        shadow_bitcoin_register_hash(shared_pblock->GetHash().ToString());
         if (!ProcessNewBlock(Params(), shared_pblock, true, nullptr))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
         blockHashes.push_back(pblock->GetHash().GetHex());

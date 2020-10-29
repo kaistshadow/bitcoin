@@ -10,6 +10,8 @@
 #include <primitives/block.h>
 #include <uint256.h>
 
+#include <util/system.h>
+
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
 {
     assert(pindexLast != nullptr);
@@ -86,8 +88,10 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
     // Check proof of work matches claimed amount
     // temporarily commented out by HJKIM
     // TODO: Shadow hash checking rule shoud be added
-    if (UintToArith256(hash) > bnTarget)
-        return false;
+    if(gArgs.GetArg("-algorithm","")=="pow") {
+        if (UintToArith256(hash) > bnTarget)
+            return false;
+    }
 
     return true;
 }

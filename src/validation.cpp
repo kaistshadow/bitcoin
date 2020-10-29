@@ -1130,48 +1130,50 @@ static signed int vfilePos=0;
 
 static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart)
 {
-    LogPrintf("WriteBlockToDisk: %d /%d / %s\n",pos.nFile,pos.nPos,block.hashMerkleRoot.ToString());
-    fs::path path = get_tmp_file_path();
-    bool fWrite=false;
-    if(pos.nFile!=vfilePos) { //new datafile is created!
-        //1. check file is same as located in shared storage
-        if (compare_dat_files(pos.nFile-1)==0) {
-            //2. if not same, store into the  shared storage
-            if(!copy_dat_files(pos.nFile-1)) {
-                return error("cannot copy %d Dat file!\n",pos.nFile-1);;
+    if(gArgs.GetArg("-storageShare","disable")=="enable") {
+        LogPrintf("WriteBlockToDisk: %d /%d / %s\n",pos.nFile,pos.nPos,block.hashMerkleRoot.ToString());
+        fs::path path = get_tmp_file_path();
+        bool fWrite=false;
+        if(pos.nFile!=vfilePos) { //new datafile is created!
+            //1. check file is same as located in shared storage
+            if (compare_dat_files(pos.nFile-1)==0) {
+                //2. if not same, store into the  shared storage
+                if(!copy_dat_files(pos.nFile-1)) {
+                    return error("cannot copy %d Dat file!\n",pos.nFile-1);;
+                }
             }
-            LogPrintf("WriteBlockToDisk Result = make new .dat file!!!!\n");
+            //3. if same, flush,
+            vfilePos=pos.nFile;
+            fWrite=true;
         }
-        //3. if same, flush,
-        vfilePos=pos.nFile;
-        fWrite=true;
+
+        //1. add block data to cp_data.dat file
+        FILE *cp_dat= fsbridge::fopen(path, fWrite? "wb+":"ab+");
+        if (fflush(cp_dat) != 0) { // harmless if redundantly called
+            LogPrintf("%s: fflush failed: %d\n", __func__, errno);
+            return false;
+        }
+        CAutoFile vfileout(cp_dat, SER_DISK, CLIENT_VERSION);
+        if (vfileout.IsNull())
+            return error("WriteBlockToDisk: OpenBlockFile failed");
+
+        // Write index header
+        unsigned int nSize = GetSerializeSize(block, vfileout.GetVersion());
+        vfileout << messageStart << nSize;
+
+        // Write block
+        long vfileOutPos = ftell(vfileout.Get());
+        if (vfileOutPos < 0)
+            return error("WriteBlockToDisk: ftell2 failed");
+
+        vfileout << block;
+
+        if (!FileCommit(vfileout.Get()))
+            throw std::runtime_error("FileCommit failed");
+        vfileout.fclose();
+
+
     }
-
-    //1. add block data to cp_data.dat file
-    FILE *cp_dat= fsbridge::fopen(path, fWrite? "wb+":"ab+");
-    if (fflush(cp_dat) != 0) { // harmless if redundantly called
-        LogPrintf("%s: fflush failed: %d\n", __func__, errno);
-        return false;
-    }
-    CAutoFile vfileout(cp_dat, SER_DISK, CLIENT_VERSION);
-    if (vfileout.IsNull())
-        return error("WriteBlockToDisk: OpenBlockFile failed");
-
-    // Write index header
-    unsigned int nSize = GetSerializeSize(block, vfileout.GetVersion());
-    vfileout << messageStart << nSize;
-
-    // Write block
-    long vfileOutPos = ftell(vfileout.Get());
-    if (vfileOutPos < 0)
-        return error("WriteBlockToDisk: ftell2 failed");
-
-    vfileout << block;
-
-    if (!FileCommit(vfileout.Get()))
-        throw std::runtime_error("FileCommit failed");
-    vfileout.fclose();
-
 
     //2. original code (make blocks/.dat file )
     // Open history file to append
@@ -1199,17 +1201,23 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
 bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams)
 {
     block.SetNull();
+    FILE* file;
+    if(gArgs.GetArg("-storageShare","disable") == "enable") {
+        //Open history file to read
+        char* path;
+        if(pos.nFile == 0) {
+            path=get_tmp_file_path();
+        } else {
+            path=get_actual_path(pos.nFile);
+        }
+        file = fopen(path, "rb");
 
-    // Open history file to read
-    char* path;
-    if(pos.nFile == 0) {
-        path=get_tmp_file_path();
-    } else {
-        path=get_actual_path(pos.nFile);
+        fseek(file, pos.nPos, SEEK_SET);
+
     }
-    FILE* file = fopen(path, "rb");
-
-    fseek(file, pos.nPos, SEEK_SET);
+    else {
+        file = OpenBlockFile(pos,true);
+    }
     CAutoFile filein(file, SER_DISK, CLIENT_VERSION);
 
     if (filein.IsNull())
@@ -3497,8 +3505,8 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationSta
         return state.Invalid(ValidationInvalidReason::BLOCK_INVALID_HEADER, false, REJECT_INVALID, "time-too-old", "block's timestamp is too early");
 
     // Check timestamp
-    if (block.GetBlockTime() > nAdjustedTime + MAX_FUTURE_BLOCK_TIME)
-        return state.Invalid(ValidationInvalidReason::BLOCK_TIME_FUTURE, false, REJECT_INVALID, "time-too-new", "block timestamp too far in the future");
+//    if (block.GetBlockTime() > nAdjustedTime + MAX_FUTURE_BLOCK_TIME)
+//        return state.Invalid(ValidationInvalidReason::BLOCK_TIME_FUTURE, false, REJECT_INVALID, "time-too-new", "block timestamp too far in the future");
 
     // Reject outdated version blocks when 95% (75% on testnet) of the network has upgraded:
     // check for version 2, 3 and 4 upgrades

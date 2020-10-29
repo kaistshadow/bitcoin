@@ -114,8 +114,8 @@ bool _check_new_block_accepted(CBlock *pblock) {
 }
 
 // See usleep(3) for recommand input parameter for usleep
-#define USEC_PER_HASH 500
-#define HASHTRY_INTERVAL 1000
+#define USEC_PER_HASH 6
+#define HASHTRY_INTERVAL 100
 void setgenerateBlocksPoW(const CScript& coinbase_script)
 {
     unsigned int nExtraNonce = 0;
@@ -144,10 +144,10 @@ void setgenerateBlocksPoW(const CScript& coinbase_script)
             }
             n_tries++;
         }
-//        if(n_tries > 0) {
-//            usleep(n_tries * USEC_PER_HASH);
-//            n_tries = 0;
-//        }
+        if(n_tries > 0) {
+            usleep(n_tries * USEC_PER_HASH);
+            n_tries = 0;
+        }
         if (ShutdownRequested()) {
             break;
         } else if(conflict_flag) {
@@ -216,9 +216,9 @@ unsigned long long int _expected_mining_usec(unsigned int nBits) {
         default_random_source = &generator;
     }
 
-#define VIRTUAL_NODE_CNT 2
-#define EXP_BLK_NO   100
-#define EXP_SIMTIME_FOR_BLK    1000
+#define VIRTUAL_NODE_CNT 30
+#define EXP_BLK_NO  5
+#define EXP_SIMTIME_FOR_BLK 600
 #define XFF_BITS 256
     arith_uint256 bnTarget;
     bnTarget.SetCompact(nBits);
@@ -233,7 +233,7 @@ unsigned long long int _expected_mining_usec(unsigned int nBits) {
         nonBits--;
     }
     long double result = -1;
-    std::exponential_distribution<long double> distribution( EXP_BLK_NO / (VIRTUAL_NODE_CNT * EXP_SIMTIME_FOR_BLK) );
+    std::exponential_distribution<long double> distribution( (long double) EXP_BLK_NO / VIRTUAL_NODE_CNT / EXP_SIMTIME_FOR_BLK);
     result = distribution(*default_random_source);
     result = result * 1000000;
     //result = result * 1000000 * multiplier;
@@ -315,39 +315,6 @@ static UniValue generatetoaddress(const JSONRPCRequest& request)
     return generateBlocks(coinbase_script, nGenerate, nMaxTries);
 }
 
-static UniValue setgeneratetoaddressPoW(const JSONRPCRequest& request)
-{
-    RPCHelpMan{"setgeneratetoaddressPoW",
-               "\nMine forever with given wallet address as a coinbase tx's wallet with old way(PoW)\n",
-               {
-                       {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The address to send the newly generated bitcoin to."},
-               },
-               RPCResult{
-                       "true              (boolean) Returns true\n"
-               },
-               RPCExamples{
-                       HelpExampleCli("setgeneratetoaddress", "\"myaddress\"")
-                       + "If you are running the bitcoin core wallet, you can get a new address to send the newly generated bitcoin to with:\n"
-                       + HelpExampleCli("getnewaddress", "")
-               },
-    }.Check(request);
-
-    static boost::thread_group* minerThreadsPoW = NULL;
-    if(minerThreadsPoW) {
-        return false;
-    }
-
-    CTxDestination destination = DecodeDestination(request.params[0].get_str());
-    if (!IsValidDestination(destination)) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Error: Invalid address");
-    }
-
-    CScript coinbase_script = GetScriptForDestination(destination);
-    minerThreadsPoW = new boost::thread_group();
-    minerThreadsPoW->create_thread(boost::bind(&setgenerateBlocksPoW, coinbase_script));
-    return true;
-}
-
 static UniValue setgeneratetoaddress(const JSONRPCRequest& request)
 {
     RPCHelpMan{"setgeneratetoaddress",
@@ -377,7 +344,12 @@ static UniValue setgeneratetoaddress(const JSONRPCRequest& request)
 
     CScript coinbase_script = GetScriptForDestination(destination);
     minerThreads = new boost::thread_group();
-    minerThreads->create_thread(boost::bind(&setgenerateBlocks, coinbase_script));
+    if(gArgs.GetArg("-algorithm","")=="pow") {
+        minerThreads->create_thread(boost::bind(&setgenerateBlocksPoW, coinbase_script));
+    }
+    else if( gArgs.GetArg("-algorithm","")=="coinflip"){
+        minerThreads->create_thread(boost::bind(&setgenerateBlocks, coinbase_script));
+    }
     return true;
 }
 
@@ -1167,7 +1139,6 @@ static const CRPCCommand commands[] =
 
     { "generating",         "generatetoaddress",      &generatetoaddress,      {"nblocks","address","maxtries"} },
     { "generating",         "setgeneratetoaddress",   &setgeneratetoaddress,   {"address"} },
-    { "generating",         "setgeneratetoaddressPoW",   &setgeneratetoaddressPoW,   {"address"} },
 
     { "util",               "estimatesmartfee",       &estimatesmartfee,       {"conf_target", "estimate_mode"} },
 

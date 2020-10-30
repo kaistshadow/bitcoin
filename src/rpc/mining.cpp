@@ -344,10 +344,10 @@ static UniValue setgeneratetoaddress(const JSONRPCRequest& request)
 
     CScript coinbase_script = GetScriptForDestination(destination);
     minerThreads = new boost::thread_group();
-    if(gArgs.GetArg("-algorithm","")=="pow") {
+    if(gArgs.GetArg("-algorithm","coinflip")=="pow") {
         minerThreads->create_thread(boost::bind(&setgenerateBlocksPoW, coinbase_script));
     }
-    else if( gArgs.GetArg("-algorithm","")=="coinflip"){
+    else if( gArgs.GetArg("-algorithm","coinflip")=="coinflip"){
         minerThreads->create_thread(boost::bind(&setgenerateBlocks, coinbase_script));
     }
     return true;

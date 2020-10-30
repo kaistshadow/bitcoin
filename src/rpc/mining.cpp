@@ -239,6 +239,10 @@ unsigned long long int _expected_mining_usec(unsigned int nBits) {
     //result = result * 1000000 * multiplier;
     return (unsigned long long int)result;
 }
+// temporary dummy function
+void shadow_bitcoin_register_hash(std::string hash) {
+    return;
+}
 void setgenerateBlocks(const CScript& coinbase_script)
 {
     unsigned int nExtraNonce = 0;
@@ -273,6 +277,7 @@ void setgenerateBlocks(const CScript& coinbase_script)
             continue;
         }
         std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
+        shadow_bitcoin_register_hash(shared_pblock->GetHash().ToString());
         if (!ProcessNewBlock(Params(), shared_pblock, true, nullptr))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
         blockHashes.push_back(pblock->GetHash().GetHex());
@@ -344,10 +349,13 @@ static UniValue setgeneratetoaddress(const JSONRPCRequest& request)
 
     CScript coinbase_script = GetScriptForDestination(destination);
     minerThreads = new boost::thread_group();
-    if(gArgs.GetArg("-algorithm","coinflip")=="pow") {
+#define MINE_POW        0
+#define MINE_COINFLIP   1
+    static int MiningMode= gArgs.GetArg("-algorithm","coinflip")=="pow" ? MINE_POW : MINE_COINFLIP;
+    if( MiningMode == MINE_POW ) {
         minerThreads->create_thread(boost::bind(&setgenerateBlocksPoW, coinbase_script));
     }
-    else if( gArgs.GetArg("-algorithm","coinflip")=="coinflip"){
+    else if( MiningMode == MINE_COINFLIP ) {
         minerThreads->create_thread(boost::bind(&setgenerateBlocks, coinbase_script));
     }
     return true;

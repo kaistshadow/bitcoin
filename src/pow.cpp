@@ -73,6 +73,10 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
     return bnNew.GetCompact();
 }
 
+bool shadow_bitcoin_check_hash(std::string hash) {
+    return true;
+}
+
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params)
 {
     bool fNegative;
@@ -88,8 +92,15 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
     // Check proof of work matches claimed amount
     // temporarily commented out by HJKIM
     // TODO: Shadow hash checking rule shoud be added
-    if(gArgs.GetArg("-algorithm","")=="pow") {
+
+#define MINE_POW        0
+#define MINE_COINFLIP   1
+    static int MiningMode = gArgs.GetArg("-algorithm","coinflip")=="pow" ? MINE_POW : MINE_COINFLIP;
+    if( MiningMode == MINE_POW ) {
         if (UintToArith256(hash) > bnTarget)
+            return false;
+    } else if( MiningMode == MINE_COINFLIP ) {
+        if (!shadow_bitcoin_check_hash(hash.GetHex()))
             return false;
     }
 

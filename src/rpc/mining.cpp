@@ -265,7 +265,6 @@ void setgenerateBlocks(const CScript& coinbase_script)
         unsigned long long int rand_usec = _expected_mining_usec(pblock->nBits);
         while(elapsed_usec < rand_usec) {
             usleep(MONITOR_INT_USEC);
-            LogPrintf("hj !! - set \n");
             if((conflict_flag = _check_new_block_accepted(pblock)) || ShutdownRequested()) {
                 break;
             }

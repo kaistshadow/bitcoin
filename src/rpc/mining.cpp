@@ -39,6 +39,7 @@
 // for coinflip - added by HJKIM
 #include <random>
 #include <shadow_interface.h>
+#include <shadow_bitcoin_interface.h>
 
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
@@ -239,10 +240,6 @@ unsigned long long int _expected_mining_usec(unsigned int nBits) {
     //result = result * 1000000 * multiplier;
     return (unsigned long long int)result;
 }
-// temporary dummy function
-void shadow_bitcoin_register_hash(std::string hash) {
-    return;
-}
 void setgenerateBlocks(const CScript& coinbase_script)
 {
     unsigned int nExtraNonce = 0;
@@ -276,7 +273,7 @@ void setgenerateBlocks(const CScript& coinbase_script)
             continue;
         }
         std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
-        shadow_bitcoin_register_hash(shared_pblock->GetHash().ToString());
+        shadow_bitcoin_register_hash(shared_pblock->GetHash().ToString().c_str());
         if (!ProcessNewBlock(Params(), shared_pblock, true, nullptr))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
         blockHashes.push_back(pblock->GetHash().GetHex());

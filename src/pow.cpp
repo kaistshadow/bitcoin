@@ -11,6 +11,7 @@
 #include <uint256.h>
 
 #include <util/system.h>
+#include <shadow_bitcoin_interface.h>
 
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
 {
@@ -73,10 +74,6 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
     return bnNew.GetCompact();
 }
 
-bool shadow_bitcoin_check_hash(std::string hash) {
-    return true;
-}
-
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params)
 {
     bool fNegative;
@@ -96,13 +93,10 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 #define MINE_POW        0
 #define MINE_COINFLIP   1
     static int MiningMode = gArgs.GetArg("-algorithm","coinflip")=="pow" ? MINE_POW : MINE_COINFLIP;
-    if( MiningMode == MINE_POW ) {
-        if (UintToArith256(hash) > bnTarget)
-            return false;
-    } else if( MiningMode == MINE_COINFLIP ) {
-        if (!shadow_bitcoin_check_hash(hash.GetHex()))
-            return false;
+    if( MiningMode == MINE_COINFLIP && shadow_bitcoin_check_hash(hash.GetHex().c_str())) {
+        return true;
     }
-
+    if (UintToArith256(hash) > bnTarget)
+        return false;
     return true;
 }

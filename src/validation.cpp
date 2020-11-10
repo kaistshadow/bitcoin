@@ -1130,8 +1130,9 @@ static signed int vfilePos=0;
 
 static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart)
 {
+    LogPrintf("WriteBlockToDisk-txCount %d\n",block.vtx.size());
     if(gArgs.GetArg("-storageShare","disable")=="enable") {
-        LogPrintf("WriteBlockToDisk: %d /%d / %s\n",pos.nFile,pos.nPos,block.hashMerkleRoot.ToString());
+//        LogPrintf("WriteBlockToDisk: %d /%d / %s\n",pos.nFile,pos.nPos,block.hashMerkleRoot.ToString());
         fs::path path = get_tmp_file_path();
         bool fWrite=false;
         if(pos.nFile!=vfilePos) { //new datafile is created!

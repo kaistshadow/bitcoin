@@ -26,7 +26,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/bitcoind
   DEPENDS SHADOW_INTERFACE
   DEPENDS SHADOW_BITCOIN_INTERFACE
   COMMAND ./autogen.sh
-  COMMAND ./configure CPPFLAGS='-I${CMAKE_INSTALL_PREFIX}/bdb_4.8.30/include -I${CMAKE_INSTALL_PREFIX}/include -I${CMAKE_ROOT_SOURCE_DIR}/interfaces/shadow_interface -I${CMAKE_ROOT_SOURCE_DIR}/interfaces/shadow_bitcoin_interface' LDFLAGS='-L${CMAKE_INSTALL_PREFIX}/bdb_4.8.30/lib -L${CMAKE_INSTALL_PREFIX}/lib -L$<TARGET_FILE_DIR:SHADOW_INTERFACE> -L$<TARGET_FILE_DIR:SHADOW_BITCOIN_INTERFACE>' LIBS='-lSHADOW_INTERFACE -lSHADOW_BITCOIN_INTERFACE' --with-pic --disable-bench --disable-tests --enable-debug --disable-threadlocal --disable-zmq
+  COMMAND ./configure CPPFLAGS='-I${CMAKE_INSTALL_PREFIX}/bdb_4.8.30/include -I${CMAKE_ROOT_SOURCE_DIR}/interfaces/shadow_interface -I${CMAKE_ROOT_SOURCE_DIR}/interfaces/shadow_bitcoin_interface -I${CMAKE_INSTALL_PREFIX}/include' LDFLAGS='-L${CMAKE_INSTALL_PREFIX}/bdb_4.8.30/lib -L${CMAKE_INSTALL_PREFIX}/lib -L$<TARGET_FILE_DIR:SHADOW_INTERFACE> -L$<TARGET_FILE_DIR:SHADOW_BITCOIN_INTERFACE>' LIBS='-lSHADOW_INTERFACE -lSHADOW_BITCOIN_INTERFACE' --with-pic --disable-bench --disable-tests --enable-debug --disable-threadlocal --disable-zmq
   COMMAND make -j4
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )

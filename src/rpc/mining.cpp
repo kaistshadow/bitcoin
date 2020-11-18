@@ -217,9 +217,9 @@ unsigned long long int _expected_mining_usec(unsigned int nBits) {
         default_random_source = &generator;
     }
 
-#define VIRTUAL_NODE_CNT 5
-#define EXP_BLK_NO  1
-#define EXP_SIMTIME_FOR_BLK 10
+#define VIRTUAL_NODE_CNT 30
+#define EXP_BLK_NO  2513
+#define EXP_SIMTIME_FOR_BLK 1000
 #define XFF_BITS 256
     arith_uint256 bnTarget;
     bnTarget.SetCompact(nBits);

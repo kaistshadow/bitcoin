@@ -1135,12 +1135,12 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     if(gArgs.GetArg("-storageShare","disable")=="enable") {
         // TODO: shadow_try_write_dat
         //   1. check pos.nFile != vfilePos
-        //      if so, shadow_try_share_prev_dat
+        //      if so, shadow_try_share_blk_dat
         /*
         bool fWrite=false;
         if(pos.nFile!=vfilePos) { //new datafile is created!
             // try share previous dat file
-            if(shadow_try_share_dat(pos.nFile-1) == -1) {
+            if(shadow_try_share_blk_dat(pos.nFile-1) == -1) {
                 return error("cannot copy %d Dat file!\n",pos.nFile-1);
             }
             vfilePos = pos.nFile;

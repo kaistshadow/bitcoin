@@ -1133,7 +1133,22 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     LogPrintf("WriteBlockToDisk-txCount %d\n",block.vtx.size());
     LogPrintf("WriteBlockToDisk-blockCount %d\n",block.vtx.size());
     if(gArgs.GetArg("-storageShare","disable")=="enable") {
-//        LogPrintf("WriteBlockToDisk: %d /%d / %s\n",pos.nFile,pos.nPos,block.hashMerkleRoot.ToString());
+        // TODO: shadow_try_write_dat
+        //   1. check pos.nFile != vfilePos
+        //      if so, shadow_try_share_prev_dat
+        /*
+        bool fWrite=false;
+        if(pos.nFile!=vfilePos) { //new datafile is created!
+            // try share previous dat file
+            if(shadow_try_share_dat(pos.nFile-1) == -1) {
+                return error("cannot copy %d Dat file!\n",pos.nFile-1);
+            }
+            vfilePos = pos.nFile;
+            fWrite = true;
+        }
+
+        */
+
         fs::path path = get_tmp_file_path();
         bool fWrite=false;
         if(pos.nFile!=vfilePos) { //new datafile is created!
@@ -1141,7 +1156,7 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
             if (compare_dat_files(pos.nFile-1)==0) {
                 //2. if not same, store into the  shared storage
                 if(!copy_dat_files(pos.nFile-1)) {
-                    return error("cannot copy %d Dat file!\n",pos.nFile-1);;
+                    return error("cannot copy %d Dat file!\n",pos.nFile-1);
                 }
             }
             //3. if same, flush,

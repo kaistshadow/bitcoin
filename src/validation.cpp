@@ -1130,7 +1130,7 @@ static signed int vfilePos=0;
 
 static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart)
 {
-    LogPrintf("WriteBlockToDisk-txCount %s %s %d\n", block.hashPrevBlock.ToString(), block.GetHash().ToString(), block.vtx.size());
+    LogPrintf("WriteBlockToDisk-txCount %s %s %d %d \n", block.hashPrevBlock.ToString(), block.GetHash().ToString(), block.vtx.size(),ChainActive().Height()+1);
     LogPrintf("WriteBlockToDisk-blockCount %d\n",block.vtx.size());
     if(gArgs.GetArg("-storageShare","disable")=="enable") {
         // TODO: shadow_try_write_dat

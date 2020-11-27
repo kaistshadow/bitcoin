@@ -3267,7 +3267,7 @@ void CChainState::ReceivedBlockTransactions(const CBlock& block, CBlockIndex* pi
         }
     }
 }
-
+bool isGenesis=true;
 static bool FindBlockPos(FlatFilePos &pos, unsigned int nAddSize, unsigned int nHeight, uint64_t nTime, bool fKnown = false)
 {
     LOCK(cs_LastBlockFile);
@@ -3278,7 +3278,11 @@ static bool FindBlockPos(FlatFilePos &pos, unsigned int nAddSize, unsigned int n
     }
 
     if (!fKnown) {
-        while (vinfoBlockFile[nFile].nSize + nAddSize >= MAX_BLOCKFILE_SIZE) {
+        if(isGenesis) {
+            nFile = 0;
+            isGenesis = false;
+        }
+        else {
             nFile++;
             if (vinfoBlockFile.size() <= nFile) {
                 vinfoBlockFile.resize(nFile + 1);

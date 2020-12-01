@@ -54,6 +54,7 @@
 #include <boost/thread.hpp>
 
 #include <shadow_interface.h>
+#include <shadow_bitcoin_interface.h>
 
 #if defined(NDEBUG)
 # error "Bitcoin cannot be compiled without assertions."
@@ -1130,8 +1131,6 @@ static signed int vfilePos=0;
 
 static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart)
 {
-    LogPrintf("WriteBlockToDisk-txCount %s %s %d %d \n", block.hashPrevBlock.ToString(), block.GetHash().ToString(), block.vtx.size(),ChainActive().Height()+1);
-    LogPrintf("WriteBlockToDisk-blockCount %d\n",block.vtx.size());
     if(gArgs.GetArg("-storageShare","disable")=="enable") {
         // TODO: shadow_try_write_dat
         //   1. check pos.nFile != vfilePos
@@ -1211,6 +1210,9 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
     if (!FileCommit(fileout.Get()))
         throw std::runtime_error("FileCommit failed");
     fileout.fclose();
+
+    //hyeojin add for logmap
+    update_log_map(block.hashPrevBlock.ToString().c_str(), block.GetHash().ToString().c_str(), block.vtx.size(),ChainActive().Height()+1);
 
     return true;
 }

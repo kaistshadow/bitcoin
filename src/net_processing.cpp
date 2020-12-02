@@ -3409,6 +3409,7 @@ void PeerLogicValidation::ConsiderEviction(CNode *pto, int64_t time_in_seconds)
             state.m_chain_sync.m_work_header = ::ChainActive().Tip();
             state.m_chain_sync.m_sent_getheaders = false;
         } else if (state.m_chain_sync.m_timeout > 0 && time_in_seconds > state.m_chain_sync.m_timeout) {
+            return;
             // No evidence yet that our peer has synced to a chain with work equal to that
             // of our tip, when we first detected it was behind. Send a single getheaders
             // message to give the peer a chance to update us.
@@ -3953,28 +3954,28 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
         if (state.fSyncStarted && state.nHeadersSyncTimeout < std::numeric_limits<int64_t>::max()) {
             // Detect whether this is a stalling initial-headers-sync peer
             if (pindexBestHeader->GetBlockTime() <= GetAdjustedTime() - 24*60*60) {
-                if (nNow > state.nHeadersSyncTimeout && nSyncStarted == 1 && (nPreferredDownload - state.fPreferredDownload >= 1)) {
-                    // Disconnect a (non-whitelisted) peer if it is our only sync peer,
-                    // and we have others we could be using instead.
-                    // Note: If all our peers are inbound, then we won't
-                    // disconnect our sync peer for stalling; we have bigger
-                    // problems if we can't get any outbound peers.
-                    if (!pto->HasPermission(PF_NOBAN)) {
-                        LogPrintf("Timeout downloading headers from peer=%d, disconnecting\n", pto->GetId());
-                        pto->fDisconnect = true;
-                        return true;
-                    } else {
-                        LogPrintf("Timeout downloading headers from whitelisted peer=%d, not disconnecting\n", pto->GetId());
-                        // Reset the headers sync state so that we have a
-                        // chance to try downloading from a different peer.
-                        // Note: this will also result in at least one more
-                        // getheaders message to be sent to
-                        // this peer (eventually).
-                        state.fSyncStarted = false;
-                        nSyncStarted--;
-                        state.nHeadersSyncTimeout = 0;
-                    }
-                }
+//                if (nNow > state.nHeadersSyncTimeout && nSyncStarted == 1 && (nPreferredDownload - state.fPreferredDownload >= 1)) {
+//                    // Disconnect a (non-whitelisted) peer if it is our only sync peer,
+//                    // and we have others we could be using instead.
+//                    // Note: If all our peers are inbound, then we won't
+//                    // disconnect our sync peer for stalling; we have bigger
+//                    // problems if we can't get any outbound peers.
+//                    if (!pto->HasPermission(PF_NOBAN)) {
+//                        LogPrintf("Timeout downloading headers from peer=%d, disconnecting\n", pto->GetId());
+//                        pto->fDisconnect = true;
+//                        return true;
+//                    } else {
+//                        LogPrintf("Timeout downloading headers from whitelisted peer=%d, not disconnecting\n", pto->GetId());
+//                        // Reset the headers sync state so that we have a
+//                        // chance to try downloading from a different peer.
+//                        // Note: this will also result in at least one more
+//                        // getheaders message to be sent to
+//                        // this peer (eventually).
+//                        state.fSyncStarted = false;
+//                        nSyncStarted--;
+//                        state.nHeadersSyncTimeout = 0;
+//                    }
+//                }
             } else {
                 // After we've caught up once, reset the timeout so we can't trigger
                 // disconnect later.

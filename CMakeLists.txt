@@ -21,14 +21,15 @@ add_custom_command(OUTPUT ${CMAKE_INSTALL_PREFIX}/plugins/libBITCOIND_0.19.1DEV.
   )
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/bitcoind
-  DEPENDS bdb_4.8.30
-  DEPENDS ${BITCOIN_0_19_1DEV_SRCS}
-  DEPENDS SHADOW_INTERFACE
-  COMMAND ./autogen.sh
-  COMMAND ./configure CPPFLAGS='-I${CMAKE_INSTALL_PREFIX}/bdb_4.8.30/include -I${CMAKE_INSTALL_PREFIX}/include -I${CMAKE_CURRENT_SOURCE_DIR}/../../../BLEEPlib/shadow_interface' LDFLAGS='-L${CMAKE_INSTALL_PREFIX}/bdb_4.8.30/lib -L${CMAKE_INSTALL_PREFIX}/lib -L$<TARGET_FILE_DIR:SHADOW_INTERFACE>' LIBS=-lSHADOW_INTERFACE --with-pic --disable-bench --disable-tests --enable-debug --disable-threadlocal --disable-zmq
-  COMMAND make -j4
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-)
+        DEPENDS bdb_4.8.30
+        DEPENDS ${BITCOIN_0_19_1DEV_SRCS}
+        DEPENDS SHADOW_INTERFACE
+        COMMAND ./autogen.sh
+        COMMAND ./configure CPPFLAGS='-I${CMAKE_INSTALL_PREFIX}/bdb_4.8.30/include -I${CMAKE_INSTALL_PREFIX}/include -I${CMAKE_CURRENT_SOURCE_DIR}/../../../BLEEPlib/shadow_interface' LDFLAGS='-L${CMAKE_INSTALL_PREFIX}/bdb_4.8.30/lib -L${CMAKE_INSTALL_PREFIX}/lib -L$<TARGET_FILE_DIR:SHADOW_INTERFACE>' LIBS=-lSHADOW_INTERFACE --with-pic --disable-bench --disable-tests --enable-debug --disable-threadlocal --disable-zmq
+        COMMAND make -j4
+        COMMAND touch ${CMAKE_CURRENT_SOURCE_DIR}/src/bitcoind
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
   
 # Define targets that can be used in same build-tree
 add_library(Bitcoin_0_19_1dev::Plugin SHARED IMPORTED GLOBAL)

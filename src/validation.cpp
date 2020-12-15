@@ -1151,14 +1151,9 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
         fs::path path = get_tmp_file_path();
         bool fWrite=false;
         if(pos.nFile!=vfilePos) { //new datafile is created!
-            //1. check file is same as located in shared storage
-            if (compare_dat_files(pos.nFile-1)==0) {
-                //2. if not same, store into the  shared storage
-                if(!copy_dat_files(pos.nFile-1)) {
-                    return error("cannot copy %d Dat file!\n",pos.nFile-1);
-                }
-            }
-            //3. if same, flush,
+            //1. compare dat files and write dat file when this is first
+            int res = compare_dat_files(pos.nFile-1);
+
             vfilePos=pos.nFile;
             fWrite=true;
         }
@@ -1224,7 +1219,7 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     if(gArgs.GetArg("-storageShare","disable") == "enable") {
         //Open history file to read
         char* path;
-        if(pos.nFile == 0) {
+        if(pos.nFile == 0 || pos.nFile==nLastBlockFile) {
             path=get_tmp_file_path();
         } else {
             path=get_actual_path(pos.nFile);

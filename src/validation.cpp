@@ -1219,7 +1219,7 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     if(gArgs.GetArg("-storageShare","disable") == "enable") {
         //Open history file to read
         char* path;
-        if(pos.nFile == 0 || pos.nFile==nLastBlockFile) {
+        if(pos.nFile==nLastBlockFile) {
             path=get_tmp_file_path();
         } else {
             path=get_actual_path(pos.nFile);

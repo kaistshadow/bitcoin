@@ -3507,8 +3507,11 @@ void PeerLogicValidation::CheckForStaleTipAndEvictPeers(const Consensus::Params 
         // Check whether our tip is stale, and if so, allow using an extra
         // outbound peer
         if (!fImporting && !fReindex && connman->GetNetworkActive() && connman->GetUseAddrmanOutgoing() && TipMayBeStale(consensusParams)) {
-            LogPrintf("Potential stale tip detected, will try using extra outbound peer (last tip update: %d seconds ago)\n", time_in_seconds - g_last_tip_update);
-            connman->SetTryNewOutboundPeer(true);
+            LogPrintf(
+                    "Potential stale tip detected, will try using extra outbound peer (last tip update: %d seconds ago)\n",
+                    time_in_seconds - g_last_tip_update);
+            LogPrintf("extra outbound peer disabled for simplicity (by Yonggon Kim, for BLEEP experiment,20201223)\n");
+            // connman->SetTryNewOutboundPeer(true);
         } else if (connman->GetTryNewOutboundPeer()) {
             connman->SetTryNewOutboundPeer(false);
         }

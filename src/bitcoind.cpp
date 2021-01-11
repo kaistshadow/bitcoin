@@ -169,7 +169,7 @@ static bool AppInit(int argc, char* argv[])
 
 int main(int argc, char* argv[])
 {
-    hj_interposer_test();
+    puts_temp("shadow_interface test");
 #ifdef WIN32
     util::WinCmdLineArgs winArgs;
     std::tie(argc, argv) = winArgs.get();
@@ -212,7 +212,7 @@ static bool AppInitForLib(int argc, char* argv[])
 int exported_main()
 {
     std::cout << "exported bitcoin main start!" << "\n";
-    hj_interposer_test();
+    puts_temp("shadow_interface test");
 
     SetupEnvironment();
 

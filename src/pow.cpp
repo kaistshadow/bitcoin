@@ -10,6 +10,9 @@
 #include <primitives/block.h>
 #include <uint256.h>
 
+#include <util/system.h>
+#include <shadow_bitcoin_interface.h>
+
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
 {
     assert(pindexLast != nullptr);
@@ -86,10 +89,14 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
     // Check proof of work matches claimed amount
     // temporarily commented out by HJKIM
     // TODO: Shadow hash checking rule shoud be added
-    /*
+
+#define MINE_POW        0
+#define MINE_COINFLIP   1
+    static int MiningMode = gArgs.GetArg("-algorithm","coinflip")=="pow" ? MINE_POW : MINE_COINFLIP;
+    if( MiningMode == MINE_COINFLIP && shadow_bitcoin_check_hash(hash.GetHex().c_str())) {
+        return true;
+    }
     if (UintToArith256(hash) > bnTarget)
         return false;
-    */
-
     return true;
 }

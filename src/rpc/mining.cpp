@@ -38,6 +38,8 @@
 #include <boost/thread.hpp>
 // for coinflip - added by HJKIM
 #include <random>
+#include <shadow_interface.h>
+#include <shadow_bitcoin_interface.h>
 
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
@@ -104,6 +106,64 @@ static UniValue getnetworkhashps(const JSONRPCRequest& request)
     return GetNetworkHashPS(!request.params[0].isNull() ? request.params[0].get_int() : 120, !request.params[1].isNull() ? request.params[1].get_int() : -1);
 }
 
+bool _check_new_block_accepted(CBlock *pblock) {
+    LOCK(cs_main);
+    if(pblock->hashPrevBlock != ::ChainActive().Tip()->GetBlockHash()) {
+        return true;
+    }
+    return false;
+}
+
+// See usleep(3) for recommand input parameter for usleep
+#define USEC_PER_HASH 6
+#define HASHTRY_INTERVAL 100
+void setgenerateBlocksPoW(const CScript& coinbase_script)
+{
+    unsigned int nExtraNonce = 0;
+    UniValue blockHashes(UniValue::VARR);
+
+    while (!ShutdownRequested())
+    {
+        uint64_t n_tries = 0;
+        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbase_script));
+        if (!pblocktemplate.get())
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
+        CBlock *pblock = &pblocktemplate->block;
+        {
+            LOCK(cs_main);
+            IncrementExtraNonce(pblock, ::ChainActive().Tip(), nExtraNonce);
+        }
+        bool conflict_flag = false;
+        while (pblock->nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus()) && !ShutdownRequested()) {
+            ++pblock->nNonce;
+            if(n_tries >= HASHTRY_INTERVAL) {
+                usleep(n_tries * USEC_PER_HASH);
+                n_tries = 0;
+                if (conflict_flag = _check_new_block_accepted(pblock)) {
+                    break;
+                }
+            }
+            n_tries++;
+        }
+        if(n_tries > 0) {
+            usleep(n_tries * USEC_PER_HASH);
+            n_tries = 0;
+        }
+        if (ShutdownRequested()) {
+            break;
+        } else if(conflict_flag) {
+            continue;
+        }
+        if (pblock->nNonce == std::numeric_limits<uint32_t>::max()) {
+            continue;
+        }
+        std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
+        if (!ProcessNewBlock(Params(), shared_pblock, true, nullptr))
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
+        blockHashes.push_back(pblock->GetHash().GetHex());
+    }
+}
+
 static UniValue generateBlocks(const CScript& coinbase_script, int nGenerate, uint64_t nMaxTries)
 {
     int nHeightEnd = 0;
@@ -145,17 +205,6 @@ static UniValue generateBlocks(const CScript& coinbase_script, int nGenerate, ui
     return blockHashes;
 }
 
-bool _check_new_block_accepted(CBlock *pblock) {
-    LOCK(cs_main);
-    if(pblock->hashPrevBlock != ::ChainActive().Tip()->GetBlockHash()) {
-        return true;
-    }
-    return false;
-}
-unsigned int shadow_assign_virtual_id() {
-    // dummy function for interposer
-    return 0;
-}
 unsigned long long int _expected_mining_usec(unsigned int nBits) {
     static std::default_random_engine* default_random_source = NULL;
     if(default_random_source==NULL) {
@@ -167,25 +216,28 @@ unsigned long long int _expected_mining_usec(unsigned int nBits) {
         static std::default_random_engine generator(random_num);
         default_random_source = &generator;
     }
-#define POW_LIMIT_RANDOM_BASE 174762.66 //1024*1024/6
-#define VIRTUAL_NODE_CNT 2
+
+#define VIRTUAL_NODE_CNT 30
+#define EXP_BLK_NO  2513
+#define EXP_SIMTIME_FOR_BLK 1000
 #define XFF_BITS 256
     arith_uint256 bnTarget;
     bnTarget.SetCompact(nBits);
     unsigned int nonBits = XFF_BITS - bnTarget.bits();
-    unsigned long long int multiplier = 1;
+    //unsigned long long int multiplier = 1;
     if(nonBits>63) {
         std::cout<<"Error: Too High Difficulties\n";
         ::exit(EXIT_FAILURE);
     }
     while(nonBits>0) {
-        multiplier*=2;
+        //multiplier*=2;
         nonBits--;
     }
     long double result = -1;
-    std::exponential_distribution<long double> distribution(POW_LIMIT_RANDOM_BASE / VIRTUAL_NODE_CNT);
+    std::exponential_distribution<long double> distribution( (long double) EXP_BLK_NO / VIRTUAL_NODE_CNT / EXP_SIMTIME_FOR_BLK);
     result = distribution(*default_random_source);
-    result = result * 1000000 * multiplier;
+    result = result * 1000000;
+    //result = result * 1000000 * multiplier;
     return (unsigned long long int)result;
 }
 void setgenerateBlocks(const CScript& coinbase_script)
@@ -221,6 +273,7 @@ void setgenerateBlocks(const CScript& coinbase_script)
             continue;
         }
         std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
+        shadow_bitcoin_register_hash(shared_pblock->GetHash().ToString().c_str());
         if (!ProcessNewBlock(Params(), shared_pblock, true, nullptr))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
         blockHashes.push_back(pblock->GetHash().GetHex());
@@ -292,7 +345,15 @@ static UniValue setgeneratetoaddress(const JSONRPCRequest& request)
 
     CScript coinbase_script = GetScriptForDestination(destination);
     minerThreads = new boost::thread_group();
-    minerThreads->create_thread(boost::bind(&setgenerateBlocks, coinbase_script));
+#define MINE_POW        0
+#define MINE_COINFLIP   1
+    static int MiningMode= gArgs.GetArg("-algorithm","coinflip")=="pow" ? MINE_POW : MINE_COINFLIP;
+    if( MiningMode == MINE_POW ) {
+        minerThreads->create_thread(boost::bind(&setgenerateBlocksPoW, coinbase_script));
+    }
+    else if( MiningMode == MINE_COINFLIP ) {
+        minerThreads->create_thread(boost::bind(&setgenerateBlocks, coinbase_script));
+    }
     return true;
 }
 

@@ -76,6 +76,8 @@ TransactionError BroadcastTransaction(const CTransactionRef tx, std::string& err
     if (callback_set) {
         // Wait until Validation Interface clients have been notified of the
         // transaction entering the mempool.
+        // BLEEP: force scheduler to switch to promised child thread, since Shadow uses non-preemptive scheduling
+        // Caution: usleep(1) makes 1 micro second simulation incorrectness to fix Shadow related scheduling issue with simple code insertion
         usleep(1);
         promise.get_future().wait();
     }

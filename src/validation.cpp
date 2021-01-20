@@ -1127,74 +1127,16 @@ bool GetTransaction(const uint256& hash, CTransactionRef& txOut, const Consensus
 // CBlock and CBlockIndex
 //
 
-static signed int vfilePos=0;
-
 static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessageHeader::MessageStartChars& messageStart)
 {
-    if(gArgs.GetArg("-storageShare","disable")=="enable") {
-        // TODO: shadow_try_write_dat
-        //   1. check pos.nFile != vfilePos
-        //      if so, shadow_try_share_blk_dat
-        /*
-        bool fWrite=false;
-        if(pos.nFile!=vfilePos) { //new datafile is created!
-            // try share previous dat file
-            if(shadow_try_share_blk_dat(pos.nFile-1) == -1) {
-                return error("cannot copy %d Dat file!\n",pos.nFile-1);
-            }
-            vfilePos = pos.nFile;
-            fWrite = true;
-        }
-
-        */
-
-        fs::path path = get_tmp_file_path();
-        bool fWrite=false;
-        if(pos.nFile!=vfilePos) { //new datafile is created!
-            //1. compare dat files and write dat file when this is first
-            int res = compare_dat_files(pos.nFile-1);
-
-            vfilePos=pos.nFile;
-            fWrite=true;
-        }
-
-        //1. add block data to cp_data.dat file
-        FILE *cp_dat= fsbridge::fopen(path, fWrite? "wb+":"ab+");
-        if (fflush(cp_dat) != 0) { // harmless if redundantly called
-            LogPrintf("%s: fflush failed: %d\n", __func__, errno);
-            return false;
-        }
-        CAutoFile vfileout(cp_dat, SER_DISK, CLIENT_VERSION);
-        if (vfileout.IsNull())
-            return error("WriteBlockToDisk: OpenBlockFile failed");
-
-        // Write index header
-        unsigned int nSize = GetSerializeSize(block, vfileout.GetVersion());
-        vfileout << messageStart << nSize;
-
-        // Write block
-        long vfileOutPos = ftell(vfileout.Get());
-        if (vfileOutPos < 0)
-            return error("WriteBlockToDisk: ftell2 failed");
-
-        vfileout << block;
-
-        if (!FileCommit(vfileout.Get()))
-            throw std::runtime_error("FileCommit failed");
-        vfileout.fclose();
-
-
-    }
-
-    //2. original code (make blocks/.dat file )
     // Open history file to append
     CAutoFile fileout(OpenBlockFile(pos), SER_DISK, CLIENT_VERSION);
     if (fileout.IsNull())
         return error("WriteBlockToDisk: OpenBlockFile failed");
 
     // Write index header
-    unsigned int nSize2 = GetSerializeSize(block, fileout.GetVersion());
-    fileout << messageStart << nSize2;
+    unsigned int nSize = GetSerializeSize(block, fileout.GetVersion());
+    fileout << messageStart << nSize;
 
     // Write block
     long fileOutPos = ftell(fileout.Get());
@@ -1202,12 +1144,6 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
         return error("WriteBlockToDisk: ftell failed");
     pos.nPos = (unsigned int)fileOutPos;
     fileout << block;
-    if (!FileCommit(fileout.Get()))
-        throw std::runtime_error("FileCommit failed");
-    fileout.fclose();
-
-    //hyeojin add for logmap
-    update_log_map(block.hashPrevBlock.ToString().c_str(), block.GetHash().ToString().c_str(), block.vtx.size(),ChainActive().Height()+1);
 
     return true;
 }
@@ -1215,25 +1151,9 @@ static bool WriteBlockToDisk(const CBlock& block, FlatFilePos& pos, const CMessa
 bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::Params& consensusParams)
 {
     block.SetNull();
-    FILE* file;
-    if(gArgs.GetArg("-storageShare","disable") == "enable") {
-        //Open history file to read
-        char* path;
-        if(pos.nFile==nLastBlockFile) {
-            path=get_tmp_file_path();
-        } else {
-            path=get_actual_path(pos.nFile);
-        }
-        file = fopen(path, "rb");
 
-        fseek(file, pos.nPos, SEEK_SET);
-
-    }
-    else {
-        file = OpenBlockFile(pos,true);
-    }
-    CAutoFile filein(file, SER_DISK, CLIENT_VERSION);
-
+    // Open history file to read
+    CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
     if (filein.IsNull())
         return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
 
@@ -1244,7 +1164,6 @@ bool ReadBlockFromDisk(CBlock& block, const FlatFilePos& pos, const Consensus::P
     catch (const std::exception& e) {
         return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
     }
-    filein.fclose();
 
     // Check the header
     if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
@@ -3264,7 +3183,7 @@ void CChainState::ReceivedBlockTransactions(const CBlock& block, CBlockIndex* pi
         }
     }
 }
-bool isGenesis=true;
+
 static bool FindBlockPos(FlatFilePos &pos, unsigned int nAddSize, unsigned int nHeight, uint64_t nTime, bool fKnown = false)
 {
     LOCK(cs_LastBlockFile);
@@ -3275,11 +3194,7 @@ static bool FindBlockPos(FlatFilePos &pos, unsigned int nAddSize, unsigned int n
     }
 
     if (!fKnown) {
-        if(isGenesis) {
-            nFile = 0;
-            isGenesis = false;
-        }
-        else {
+        while (vinfoBlockFile[nFile].nSize + nAddSize >= MAX_BLOCKFILE_SIZE) {
             nFile++;
             if (vinfoBlockFile.size() <= nFile) {
                 vinfoBlockFile.resize(nFile + 1);

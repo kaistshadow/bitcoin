@@ -163,6 +163,40 @@ void setgenerateBlocksPoW(const CScript& coinbase_script)
         blockHashes.push_back(pblock->GetHash().GetHex());
     }
 }
+void setgenerateBlockNotimePoW(const CScript& coinbase_script)
+{
+    unsigned int nExtraNonce = 0;
+    UniValue blockHashes(UniValue::VARR);
+
+    while (!ShutdownRequested())
+    {
+        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbase_script));
+        if (!pblocktemplate.get())
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
+        CBlock *pblock = &pblocktemplate->block;
+        {
+            LOCK(cs_main);
+            IncrementExtraNonce(pblock, ::ChainActive().Tip(), nExtraNonce);
+        }
+        bool conflict_flag = false;
+        while (pblock->nNonce < std::numeric_limits<uint32_t>::max() && !CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus()) && !ShutdownRequested()) {
+            ++pblock->nNonce;
+        }
+        if (ShutdownRequested()) {
+            break;
+        } else if(conflict_flag) {
+            continue;
+        }
+        if (pblock->nNonce == std::numeric_limits<uint32_t>::max()) {
+            continue;
+        }
+        std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
+        if (!ProcessNewBlock(Params(), shared_pblock, true, nullptr))
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
+        blockHashes.push_back(pblock->GetHash().GetHex());
+        break;
+    }
+}
 
 static UniValue generateBlocks(const CScript& coinbase_script, int nGenerate, uint64_t nMaxTries)
 {
@@ -279,6 +313,28 @@ void setgenerateBlocks(const CScript& coinbase_script)
         blockHashes.push_back(pblock->GetHash().GetHex());
     }
 }
+void setgenerateBlockNotime(const CScript& coinbase_script)
+{
+    unsigned int nExtraNonce = 0;
+    UniValue blockHashes(UniValue::VARR);
+
+    while (!ShutdownRequested()) {
+        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbase_script));
+        if (!pblocktemplate.get())
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
+        CBlock *pblock = &pblocktemplate->block;
+        {
+            LOCK(cs_main);
+            IncrementExtraNonce(pblock, ::ChainActive().Tip(), nExtraNonce);
+        }
+        std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(*pblock);
+        shadow_bitcoin_register_hash(shared_pblock->GetHash().ToString().c_str());
+        if (!ProcessNewBlock(Params(), shared_pblock, true, nullptr))
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "ProcessNewBlock, block not accepted");
+        blockHashes.push_back(pblock->GetHash().GetHex());
+        break;
+    }
+}
 
 static UniValue generatetoaddress(const JSONRPCRequest& request)
 {
@@ -353,6 +409,40 @@ static UniValue setgeneratetoaddress(const JSONRPCRequest& request)
     }
     else if( MiningMode == MINE_COINFLIP ) {
         minerThreads->create_thread(boost::bind(&setgenerateBlocks, coinbase_script));
+    }
+    return true;
+}
+static UniValue setgeneratetoaddressnotime(const JSONRPCRequest& request)
+{
+    RPCHelpMan{"setgeneratetoaddressnotime",
+               "\nMine forever with given wallet address as a coinbase tx's wallet\n",
+               {
+                       {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The address to send the newly generated bitcoin to."},
+               },
+               RPCResult{
+                       "true              (boolean) Returns true\n"
+               },
+               RPCExamples{
+                       HelpExampleCli("setgeneratetoaddressnotime", "\"myaddress\"")
+                       + "If you are running the bitcoin core wallet, you can get a new address to send the newly generated bitcoin to with:\n"
+                       + HelpExampleCli("getnewaddress", "")
+               },
+    }.Check(request);
+
+    CTxDestination destination = DecodeDestination(request.params[0].get_str());
+    if (!IsValidDestination(destination)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Error: Invalid address");
+    }
+
+    CScript coinbase_script = GetScriptForDestination(destination);
+#define MINE_POW        0
+#define MINE_COINFLIP   1
+    static int MiningMode= gArgs.GetArg("-algorithm","coinflip")=="pow" ? MINE_POW : MINE_COINFLIP;
+    if( MiningMode == MINE_POW ) {
+        setgenerateBlockNotimePoW(coinbase_script);
+    }
+    else if( MiningMode == MINE_COINFLIP ) {
+        setgenerateBlockNotime(coinbase_script);
     }
     return true;
 }
@@ -1143,6 +1233,7 @@ static const CRPCCommand commands[] =
 
     { "generating",         "generatetoaddress",      &generatetoaddress,      {"nblocks","address","maxtries"} },
     { "generating",         "setgeneratetoaddress",   &setgeneratetoaddress,   {"address"} },
+    { "generating",         "setgeneratetoaddressnotime",   &setgeneratetoaddressnotime,   {"address"} },
 
     { "util",               "estimatesmartfee",       &estimatesmartfee,       {"conf_target", "estimate_mode"} },
 

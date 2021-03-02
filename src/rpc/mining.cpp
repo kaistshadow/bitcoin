@@ -139,7 +139,7 @@ void setgenerateBlocksPoW(const CScript& coinbase_script)
             if(n_tries >= HASHTRY_INTERVAL) {
                 usleep(n_tries * USEC_PER_HASH);
                 n_tries = 0;
-                if (conflict_flag = _check_new_block_accepted(pblock)) {
+                if (conflict_flag == _check_new_block_accepted(pblock)) {
                     break;
                 }
             }
@@ -251,10 +251,23 @@ unsigned long long int _expected_mining_usec(unsigned int nBits) {
         default_random_source = &generator;
     }
 
-#define VIRTUAL_NODE_CNT 1
-#define EXP_BLK_NO  300
-#define EXP_SIMTIME_FOR_BLK 1000
-#define XFF_BITS 256
+    int VIRTUAL_NODE_CNT = 1;
+    int EXP_BLK_NO = 0;
+    int EXP_SIMTIME_FOR_BLK = 1000;
+    int XFF_BITS = 256;
+
+    int difficulty = std::stoi(gArgs.GetArg("-difficulty","1"));
+    if (difficulty == 1)  //same as mainnet, default
+        EXP_BLK_NO = 1;
+    else if (difficulty == 2)  // between testnet and mainnet
+        EXP_BLK_NO = 11;
+    else if (difficulty == 3)  //same as testnet
+        EXP_BLK_NO = 158;
+    else {
+        error("Difficulty error occured, please select difficulty between 1 and 3  \n");
+    }
+    LogPrintf("hj !!! _expected_mining_usec : %d %d %d \n",VIRTUAL_NODE_CNT,EXP_BLK_NO,EXP_SIMTIME_FOR_BLK);
+
     arith_uint256 bnTarget;
     bnTarget.SetCompact(nBits);
     unsigned int nonBits = XFF_BITS - bnTarget.bits();
@@ -296,7 +309,7 @@ void setgenerateBlocks(const CScript& coinbase_script)
         unsigned long long int rand_usec = _expected_mining_usec(pblock->nBits);
         while(elapsed_usec < rand_usec) {
             usleep(MONITOR_INT_USEC);
-            if((conflict_flag = _check_new_block_accepted(pblock)) || ShutdownRequested()) {
+            if((conflict_flag == _check_new_block_accepted(pblock)) || ShutdownRequested()) {
                 break;
             }
             elapsed_usec += MONITOR_INT_USEC;

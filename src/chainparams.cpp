@@ -71,7 +71,7 @@ public:
         consensus.BIP65Height = 388381; // 000000000000000004c2b624ed5d7756c508d90fd0da2c7c679febfa6c4735f0
         consensus.BIP66Height = 363725; // 00000000000000000379eaa19dce8c9b722d46ae6a57c2f1a988119488b50931
         consensus.CSVHeight = 419328; // 000000000000000004a1b34462cb8aeebd5799177f7a29cf28f2d1961716b5b5
-        consensus.SegwitHeight = 0; // 0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893
+        consensus.SegwitHeight = 481824; // 0000000000000000001c8018d9cb3b742ef25114f27563e3fc4a1902167f9893
         consensus.MinBIP9WarningHeight = 483840; // segwit activation height + miner confirmation window
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 14 * 24 * 60 * 60; // two weeks
@@ -111,9 +111,9 @@ public:
             assert(consensus.hashGenesisBlock == uint256S("0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"));
         }
         else if (difficulty == 2) { // between testnet and mainnet
-            genesis = CreateGenesisBlock(1296688602, 8506376, 0x1e00ffff , 1, 50 * COIN);
+            genesis = CreateGenesisBlock(1231006505, 2090564358, 0x1e00ffff , 1, 50 * COIN);
             consensus.hashGenesisBlock = genesis.GetHash();
-            assert(consensus.hashGenesisBlock == uint256S("000000624494146417f1a70508fa5cb247b48d70869781c50605512d248ebfa8"));
+            assert(consensus.hashGenesisBlock == uint256S("0x00000090c85e97a6cb532c632cb0369ac69b0607d39352f1245d7e0ce9a5019c"));
         }
         else if (difficulty == 3) { //same as testnet
             genesis = CreateGenesisBlock(1231006505, 2085223420, 0x1e0fffff, 1, 50 * COIN);

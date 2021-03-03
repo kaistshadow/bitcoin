@@ -139,7 +139,7 @@ void setgenerateBlocksPoW(const CScript& coinbase_script)
             if(n_tries >= HASHTRY_INTERVAL) {
                 usleep(n_tries * USEC_PER_HASH);
                 n_tries = 0;
-                if (conflict_flag == _check_new_block_accepted(pblock)) {
+                if (conflict_flag = _check_new_block_accepted(pblock)) {
                     break;
                 }
             }
@@ -266,7 +266,6 @@ unsigned long long int _expected_mining_usec(unsigned int nBits) {
     else {
         error("Difficulty error occured, please select difficulty between 1 and 3  \n");
     }
-    LogPrintf("hj !!! _expected_mining_usec : %d %d %d \n",VIRTUAL_NODE_CNT,EXP_BLK_NO,EXP_SIMTIME_FOR_BLK);
 
     arith_uint256 bnTarget;
     bnTarget.SetCompact(nBits);
@@ -309,7 +308,7 @@ void setgenerateBlocks(const CScript& coinbase_script)
         unsigned long long int rand_usec = _expected_mining_usec(pblock->nBits);
         while(elapsed_usec < rand_usec) {
             usleep(MONITOR_INT_USEC);
-            if((conflict_flag == _check_new_block_accepted(pblock)) || ShutdownRequested()) {
+            if((conflict_flag = _check_new_block_accepted(pblock)) || ShutdownRequested()) {
                 break;
             }
             elapsed_usec += MONITOR_INT_USEC;

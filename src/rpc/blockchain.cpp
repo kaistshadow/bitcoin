@@ -186,24 +186,6 @@ static UniValue getblockcount(const JSONRPCRequest& request)
     return ::ChainActive().Height();
 }
 
-static UniValue gettxtotalcount(const JSONRPCRequest& request)
-{
-    RPCHelpMan{"gettxtotalcount",
-               "\nReturns the height of the most-work fully-validated chain.\n"
-               "The genesis block has height 0.\n",
-               {},
-               RPCResult{
-                       "n    (numeric) The current block count\n"
-               },
-               RPCExamples{
-                       HelpExampleCli("gettxtotalcount", "")
-                       + HelpExampleRpc("gettxtotalcount", "")
-               },
-    }.Check(request);
-
-    LOCK(cs_main);
-    return get_tx_total_count();
-}
 
 static UniValue getbestblockhash(const JSONRPCRequest& request)
 {
@@ -2302,7 +2284,6 @@ static const CRPCCommand commands[] =
     { "blockchain",         "preciousblock",          &preciousblock,          {"blockhash"} },
     { "blockchain",         "scantxoutset",           &scantxoutset,           {"action", "scanobjects"} },
     { "blockchain",         "getblockfilter",         &getblockfilter,         {"blockhash", "filtertype"} },
-    { "blockchain",         "gettxtotalcount",        &gettxtotalcount,        {}},
 
     /* Not shown in help */
     { "hidden",             "invalidateblock",        &invalidateblock,        {"blockhash"} },

@@ -28,6 +28,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/src/bitcoind
   COMMAND ./autogen.sh
   COMMAND ./configure CPPFLAGS='-I${CMAKE_INSTALL_PREFIX}/bdb_4.8.30/include -I${CMAKE_ROOT_SOURCE_DIR}/interfaces/shadow_interface -I${CMAKE_ROOT_SOURCE_DIR}/interfaces/shadow_bitcoin_interface -I${CMAKE_INSTALL_PREFIX}/include' LDFLAGS='-L${CMAKE_INSTALL_PREFIX}/bdb_4.8.30/lib -L${CMAKE_INSTALL_PREFIX}/lib -L$<TARGET_FILE_DIR:SHADOW_INTERFACE> -L$<TARGET_FILE_DIR:SHADOW_BITCOIN_INTERFACE>' LIBS='-lSHADOW_INTERFACE -lSHADOW_BITCOIN_INTERFACE' --with-pic --disable-bench --disable-tests --enable-debug --disable-threadlocal --disable-zmq
   COMMAND make -j4
+  COMMAND touch ${CMAKE_CURRENT_SOURCE_DIR}/src/bitcoind
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
@@ -36,4 +37,6 @@ add_library(Bitcoin_0_19_1dev::Plugin SHARED IMPORTED GLOBAL)
 add_dependencies(Bitcoin_0_19_1dev::Plugin bitcoin_0.19.1dev)
 set_target_properties(Bitcoin_0_19_1dev::Plugin PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-  IMPORTED_LOCATION ${CMAKE_INSTALL_PREFIX}/plugins/libBITCOIND_0.19.1DEV.so)
+  IMPORTED_LOCATION ${CMAKE_INSTALL_PREFIX}/plugins/libBITCOIND_0.19.1DEV.so
+  INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set_property(TARGET Bitcoin_0_19_1dev::Plugin PROPERTY IMPORTED_NO_SONAME 1)

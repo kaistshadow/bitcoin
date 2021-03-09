@@ -3409,6 +3409,8 @@ void PeerLogicValidation::ConsiderEviction(CNode *pto, int64_t time_in_seconds)
             state.m_chain_sync.m_work_header = ::ChainActive().Tip();
             state.m_chain_sync.m_sent_getheaders = false;
         } else if (state.m_chain_sync.m_timeout > 0 && time_in_seconds > state.m_chain_sync.m_timeout) {
+            if (gArgs.GetArg("-erebustest", false))
+                return;
             // No evidence yet that our peer has synced to a chain with work equal to that
             // of our tip, when we first detected it was behind. Send a single getheaders
             // message to give the peer a chance to update us.
@@ -3506,8 +3508,15 @@ void PeerLogicValidation::CheckForStaleTipAndEvictPeers(const Consensus::Params 
         // Check whether our tip is stale, and if so, allow using an extra
         // outbound peer
         if (!fImporting && !fReindex && connman->GetNetworkActive() && connman->GetUseAddrmanOutgoing() && TipMayBeStale(consensusParams)) {
-            LogPrintf("Potential stale tip detected, will try using extra outbound peer (last tip update: %d seconds ago)\n", time_in_seconds - g_last_tip_update);
-            connman->SetTryNewOutboundPeer(true);
+            if (gArgs.GetArg("-erebustest", false)) {
+                LogPrintf("extra outbound peer disabled for simplicity (by Yonggon Kim, for BLEEP experiment,20201223)\n");
+            }
+            else {
+                LogPrintf(
+                        "Potential stale tip detected, will try using extra outbound peer (last tip update: %d seconds ago)\n",
+                        time_in_seconds - g_last_tip_update);
+                connman->SetTryNewOutboundPeer(true);
+            }
         } else if (connman->GetTryNewOutboundPeer()) {
             connman->SetTryNewOutboundPeer(false);
         }
@@ -3953,7 +3962,8 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
         if (state.fSyncStarted && state.nHeadersSyncTimeout < std::numeric_limits<int64_t>::max()) {
             // Detect whether this is a stalling initial-headers-sync peer
             if (pindexBestHeader->GetBlockTime() <= GetAdjustedTime() - 24*60*60) {
-                if (nNow > state.nHeadersSyncTimeout && nSyncStarted == 1 && (nPreferredDownload - state.fPreferredDownload >= 1)) {
+                // bypass following logic if erebustest is running now
+                if (!gArgs.GetBoolArg("-erebustest", false) && nNow > state.nHeadersSyncTimeout && nSyncStarted == 1 && (nPreferredDownload - state.fPreferredDownload >= 1)) {
                     // Disconnect a (non-whitelisted) peer if it is our only sync peer,
                     // and we have others we could be using instead.
                     // Note: If all our peers are inbound, then we won't

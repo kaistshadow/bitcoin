@@ -555,6 +555,9 @@ void SetupServerArgs()
 
     // Add the hidden options
     gArgs.AddHiddenArgs(hidden_args);
+
+    // Add for BLEEP-sybilAPI
+    gArgs.AddArg("-erebustest", strprintf("Run as a victim node of erebus experiment (default: %u)", false), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
 }
 
 std::string LicenseInfo()

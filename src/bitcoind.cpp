@@ -23,6 +23,10 @@
 
 #include <functional>
 
+//hyeojin add for test hj_interposer_test interposer in shadow_interface.
+//#include <shadow_interface.h>
+#include <net.h>  // needed for initializing process for erebustest
+
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
 
 static void WaitForShutdown()
@@ -174,4 +178,47 @@ int main(int argc, char* argv[])
     noui_connect();
 
     return (AppInit(argc, argv) ? EXIT_SUCCESS : EXIT_FAILURE);
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// Start
+//
+static bool AppInitForLib(int argc, char* argv[])
+{
+    try {
+        SelectParams(gArgs.GetChainName());
+    } catch (const std::exception &e) {
+        return InitError(strprintf("%s\n", e.what()));
+    }
+
+    //
+    // sanitize comments per BIP-0014, format user agent and check total size
+    std::vector<std::string> uacomments;
+    for (const std::string& cmt : gArgs.GetArgs("-uacomment")) {
+        if (cmt != SanitizeString(cmt, SAFE_CHARS_UA_COMMENT))
+            return InitError(strprintf(_("User Agent comment (%s) contains unsafe characters.").translated, cmt));
+        uacomments.push_back(cmt);
+    }
+    strSubVersion = FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, uacomments);
+
+    return true;
+}
+
+
+int exported_main()
+{
+    std::cout << "exported bitcoin main start!" << "\n";
+//    puts_temp("shadow_interface test");
+
+    SetupEnvironment();
+
+    // Connect bitcoind signal handlers
+    noui_connect();
+
+    char * array[] = {"exported"};
+
+    return (AppInitForLib(1, array) ? EXIT_SUCCESS : EXIT_FAILURE);
+//    return 0;
 }

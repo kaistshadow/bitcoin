@@ -3409,7 +3409,7 @@ void PeerLogicValidation::ConsiderEviction(CNode *pto, int64_t time_in_seconds)
             state.m_chain_sync.m_work_header = ::ChainActive().Tip();
             state.m_chain_sync.m_sent_getheaders = false;
         } else if (state.m_chain_sync.m_timeout > 0 && time_in_seconds > state.m_chain_sync.m_timeout) {
-            if (gArgs.GetArg("-erebustest", false))
+            if (gArgs.GetBoolArg("-erebustest", false))
                 return;
             // No evidence yet that our peer has synced to a chain with work equal to that
             // of our tip, when we first detected it was behind. Send a single getheaders
@@ -3508,10 +3508,10 @@ void PeerLogicValidation::CheckForStaleTipAndEvictPeers(const Consensus::Params 
         // Check whether our tip is stale, and if so, allow using an extra
         // outbound peer
         if (!fImporting && !fReindex && connman->GetNetworkActive() && connman->GetUseAddrmanOutgoing() && TipMayBeStale(consensusParams)) {
-            if (gArgs.GetArg("-erebustest", false)) {
-                LogPrintf("extra outbound peer disabled for simplicity (by Yonggon Kim, for BLEEP experiment,20201223)\n");
-            }
-            else {
+            if (gArgs.GetBoolArg("-erebustest", false)) {
+                LogPrintf(
+                        "extra outbound peer disabled for simplicity (by Yonggon Kim, for BLEEP experiment,20201223)\n");
+            } else {
                 LogPrintf(
                         "Potential stale tip detected, will try using extra outbound peer (last tip update: %d seconds ago)\n",
                         time_in_seconds - g_last_tip_update);
